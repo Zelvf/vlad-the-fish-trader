@@ -1,6 +1,6 @@
 # Vlad the Fish Trader
 
-A full-stack, **paper-only** fish trading experiment. Vlad's location selects one of six stock references, then a separate BUY or SELL zone decides the order. A persistent SQLite ledger records virtual shares, cash, portfolio value, skipped signals and a SPY benchmark. The public site includes a configurable YouTube Live player, real-time state through server-sent events, a tank map, chart, holdings, history and methodology.
+A full-stack, **paper-only** fish trading experiment. Vlad's location selects one of six stock references, then a separate BUY or SELL zone decides the order. A persistent SQLite ledger records virtual shares, cash, portfolio value, skipped signals and a SPY benchmark. The public site pairs an immersive fish-shaped particle scene with a configurable YouTube Live player, real-time state through server-sent events, a tank map, chart, holdings, history and methodology.
 
 The default mode is a **labelled sample preview**. Its prices, past trades and chart points are scenario data, not market data or observed fish behavior. No broker, wallet or blockchain transaction code is present.
 
@@ -69,7 +69,7 @@ Observations use normalized coordinates (`0` to `1`) and `Authorization: Bearer 
 
 | Path | What it does |
 | --- | --- |
-| `src/` | React site, GSAP intro and Three.js ambience |
+| `src/` | React site, GSAP intro and scroll motion, procedural Three.js fish field |
 | `server/` | Express API, deterministic signal state machine, quote adapter, SQLite ledger |
 | `shared/` | Symbols, zones and API types used by both halves |
 | `tracker/` | Optional Python/OpenCV camera bridge |

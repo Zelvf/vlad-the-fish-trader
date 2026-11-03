@@ -1,13 +1,18 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, ChevronDown, CircleHelp, Crosshair, ExternalLink, Fish, Menu, Radio, Scan, ShieldCheck, Waves, X } from 'lucide-react';
-import type { Snapshot, EquityPoint, Trade } from '../shared/types';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ArrowDown, ArrowDownRight, ArrowUpRight, ChevronDown, ExternalLink, Menu, X } from 'lucide-react';
+import type { EquityPoint, Snapshot, Trade } from '../shared/types';
 import { SYMBOLS, type ZoneCode } from '../shared/catalog';
+
+gsap.registerPlugin(ScrollTrigger);
 const WaterField = lazy(() => import('./WaterField'));
 
-const money = (value: number, digits = 2) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
-const signedMoney = (value: number) => `${value >= 0 ? '+' : '−'}${money(Math.abs(value))}`;
-const signedPercent = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(2)}%`;
+const money = (value: number, digits = 2) => new Intl.NumberFormat('en-US', {
+  style: 'currency', currency: 'USD', minimumFractionDigits: digits, maximumFractionDigits: digits,
+}).format(value);
+const signedMoney = (value: number) => `${value >= 0 ? '+' : '-'}${money(Math.abs(value))}`;
+const signedPercent = (value: number) => `${value >= 0 ? '+' : '-'}${Math.abs(value).toFixed(2)}%`;
 const number = (value: number, digits = 2) => new Intl.NumberFormat('en-US', { maximumFractionDigits: digits }).format(value);
 const time = (value: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
 const relativeTime = (value: string) => {
@@ -22,16 +27,18 @@ function useSnapshot() {
   const [connection, setConnection] = useState<'connecting' | 'connected' | 'offline'>('connecting');
   useEffect(() => {
     let active = true;
-    fetch('/api/snapshot').then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json() as Promise<Snapshot>;
-    }).then((snapshot) => { if (active) { setData(snapshot); setConnection('connected'); } })
+    fetch('/api/snapshot')
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json() as Promise<Snapshot>;
+      })
+      .then((snapshot) => { if (active) { setData(snapshot); setConnection('connected'); } })
       .catch(() => { if (active) setConnection('offline'); });
     const events = new EventSource('/api/stream');
     events.addEventListener('snapshot', (event) => {
       if (!active) return;
       try { setData(JSON.parse((event as MessageEvent).data) as Snapshot); setConnection('connected'); }
-      catch { /* Wait for the next complete packet. */ }
+      catch { /* A later complete snapshot will replace this packet. */ }
     });
     events.onerror = () => { if (active) setConnection('offline'); };
     return () => { active = false; events.close(); };
@@ -39,103 +46,139 @@ function useSnapshot() {
   return { data, connection };
 }
 
-function BrandMark({ size = 34 }: { size?: number }) {
+function BrandMark({ size = 26 }: { size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden="true">
     <path d="M4 20c8-9 17-11 25-5l8-8v26l-8-8C21 31 12 29 4 20Z" fill="currentColor" />
-    <path d="M14 18c4-4 9-5 14-3M13 23c5 4 10 4 15 2" stroke="#082732" strokeWidth="1.5" strokeLinecap="round" />
-    <circle cx="12" cy="19" r="1.7" fill="#082732" />
+    <path d="M14 18c4-4 9-5 14-3M13 23c5 4 10 4 15 2" stroke="#08090b" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="12" cy="19" r="1.7" fill="#08090b" />
   </svg>;
 }
 
-function Header() {
-  const [menuOpen, setMenuOpen] = useState(false);
+function RevealTitle({ lines }: { lines: string[] }) {
+  return <h2 className="reveal-title" aria-label={lines.join(' ')}>{lines.map((line) => <span className="reveal-line" key={line}><span aria-hidden="true">{line}</span></span>)}</h2>;
+}
+
+function Header({ data }: { data: Snapshot | null }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', onKey); };
+  }, [open]);
+  useEffect(() => {
+    if (!open || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const animation = gsap.from('.menu-panel a', { y: 38, opacity: 0, duration: .6, stagger: .055, ease: 'power3.out' });
+    return () => { animation.kill(); };
+  }, [open]);
+  const close = () => setOpen(false);
   return <header className="site-header">
-    <a href="#top" className="brand" aria-label="Vlad the Fish Trader, home"><span className="brand-icon"><BrandMark /></span><span>VLAD<span className="brand-dot">.</span><small>THE FISH TRADER</small></span></a>
-    <nav className={menuOpen ? 'site-nav is-open' : 'site-nav'} aria-label="Main navigation">
-      <a href="#live" onClick={() => setMenuOpen(false)}>Live tank</a>
-      <a href="#portfolio" onClick={() => setMenuOpen(false)}>Portfolio</a>
-      <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
-      <a href="#journal" onClick={() => setMenuOpen(false)}>Journal</a>
-    </nav>
-    <a className="header-status" href="#methodology"><span className="status-pulse" />Paper trading only</a>
-    <button className="menu-button" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>
-  </header>;
-}
-
-function SectionHeading({ kicker, title, description, light = false }: { kicker: string; title: string; description?: string; light?: boolean }) {
-  return <div className={`section-heading ${light ? 'section-heading-light' : ''}`}><div className="section-kicker"><span className="section-kicker-line" />{kicker}</div><h2>{title}</h2>{description && <p>{description}</p>}</div>;
-}
-
-function LiveCam({ data }: { data: Snapshot | null }) {
-  const live = Boolean(data?.youtubeVideoId);
-  return <div className="cam-frame" id="live">
-    <div className="cam-topline"><span><Radio size={15} /> Vlad cam</span><span className={live ? 'cam-state configured' : 'cam-state'}><i />{live ? 'YouTube player ready' : 'Awaiting live feed'}</span></div>
-    <div className="cam-media">
-      {live ? <iframe src={`https://www.youtube-nocookie.com/embed/${data!.youtubeVideoId}?playsinline=1&rel=0`} title="Vlad the Fish Trader live tank stream" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
-        : <><img src="/vlad-placeholder.png" alt="Temporary illustration of a goldfish in an aquarium while Vlad's live stream is not connected" /><div className="cam-placeholder-copy"><span className="cam-prelabel">Temporary visual</span><strong>Vlad will be here.</strong><span>Connect the YouTube Live video ID to start the broadcast.</span></div></>}
-      <div className="cam-corner tl" /><div className="cam-corner tr" /><div className="cam-corner bl" /><div className="cam-corner br" />
+    <a className="wordmark" href="#top" onClick={close} aria-label="Vlad the Fish Trader, back to top"><BrandMark /><span>VLAD<span className="wordmark-period">.</span></span></a>
+    <div className="header-controls">
+      <a className="header-live" href="#live"><span className={data?.youtubeVideoId ? 'status-dot is-ready' : 'status-dot'} />{data?.youtubeVideoId ? 'Watch Vlad' : 'Feed pending'}<ArrowDownRight size={14} /></a>
+      <button className="menu-trigger" type="button" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} aria-controls="site-menu" onClick={() => setOpen(!open)}><span>{open ? 'Close' : 'Menu'}</span>{open ? <X size={17} /> : <Menu size={17} />}</button>
     </div>
-    <div className="cam-bottomline"><span><span className="cam-indicator" />{data?.signal.cameraConnected ? 'Tracker connected' : 'Tracker not connected'}</span><span>Feed and trading signals are separate systems</span></div>
-  </div>;
+    {open && <nav className="menu-panel" id="site-menu" aria-label="Main navigation">
+      <span className="menu-caption">Explore the experiment</span>
+      <a href="#live" onClick={close}>Live tank <span>01</span></a>
+      <a href="#portfolio" onClick={close}>Portfolio <span>02</span></a>
+      <a href="#tank-map" onClick={close}>Decision map <span>03</span></a>
+      <a href="#journal" onClick={close}>Trade history <span>04</span></a>
+      <a href="#how-it-works" onClick={close}>How it works <span>05</span></a>
+      <p>Every trade on this site is simulated.</p>
+    </nav>}
+  </header>;
 }
 
 function Hero({ data, connection }: { data: Snapshot | null; connection: string }) {
   const root = useRef<HTMLElement>(null);
+  const progress = useRef(0);
   useEffect(() => {
     if (!root.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const context = gsap.context(() => {
+      gsap.set(['.hero-scene-one', '.hero-scene-two'], { autoAlpha: 0, y: 55 });
+      gsap.set('.hero-progress-fill', { scaleY: 0 });
       gsap.timeline({ defaults: { ease: 'power3.out' } })
-        .from('.hero-word', { yPercent: 115, opacity: 0, duration: 1.05, stagger: 0.11 }, 0.1)
-        .from('.hero-support', { y: 18, opacity: 0, duration: 0.75 }, 0.42)
-        .from('.hero-actions', { y: 16, opacity: 0, duration: 0.7 }, 0.56)
-        .from('.cam-frame', { scale: 0.965, opacity: 0, duration: 1.05 }, 0.32);
+        .from('.hero-name span', { yPercent: 105, duration: 1.25 }, 0.1)
+        .from('.hero-name i', { opacity: 0, scale: 0.4, duration: 0.7 }, 0.68)
+        .from('.hero-strap > *', { y: 24, opacity: 0, duration: 0.75, stagger: 0.12 }, 0.6)
+        .from('.hero-topnote', { opacity: 0, duration: 0.8 }, 0.8);
+      gsap.timeline({ scrollTrigger: {
+        trigger: root.current,
+        start: 'top top',
+        end: () => `+=${Math.round(window.innerHeight * (window.innerWidth < 760 ? 1.65 : 2.25))}`,
+        pin: true,
+        scrub: .8,
+        anticipatePin: 1,
+        invalidateOnRefresh: true,
+        onUpdate: (self) => { progress.current = self.progress; },
+      } })
+        .to('.hero-name', { yPercent: 55, opacity: 0, duration: .78, ease: 'power2.in' }, 0)
+        .to('.hero-strap', { y: 50, opacity: 0, duration: .65 }, 0)
+        .to('.hero-sighting', { opacity: .18, duration: .5 }, .25)
+        .to('.hero-scene-one', { autoAlpha: 1, y: 0, duration: .65, ease: 'power3.out' }, .5)
+        .to('.hero-scene-one', { autoAlpha: 0, y: -55, duration: .5, ease: 'power2.in' }, 1.32)
+        .to('.hero-scene-two', { autoAlpha: 1, y: 0, duration: .62, ease: 'power3.out' }, 1.6)
+        .to('.hero-visual', { scale: 1.18, yPercent: -8, duration: 2.35, ease: 'none' }, 0)
+        .to('.hero-progress-fill', { scaleY: 1, duration: 2.35, ease: 'none' }, 0);
     }, root);
     return () => context.revert();
   }, []);
   return <section className="hero" id="top" ref={root}>
-    <Suspense fallback={null}><WaterField /></Suspense>
-    <div className="hero-halo" aria-hidden="true" />
-    <div className="hero-inner page-width">
-      <div className="hero-copy">
-        <div className="hero-overline"><span className="hero-line" />A real fish. A virtual portfolio.</div>
-        <h1><span className="hero-line-wrap"><span className="hero-word">One fish.</span></span><span className="hero-line-wrap"><span className="hero-word">One portfolio.</span></span><span className="hero-line-wrap"><span className="hero-word hero-word-accent">Zero financial</span></span><span className="hero-line-wrap"><span className="hero-word hero-word-accent">education.</span></span></h1>
-        <p className="hero-support">Meet Vlad, the fish whose movements choose stocks. Every decision is visible. Every trade is simulated. The market has never had a smaller analyst.</p>
-        <div className="hero-actions"><a className="button button-primary" href="#live">Watch the tank <ArrowRight size={18} /></a><a className="button button-secondary" href="#portfolio">Explore the portfolio <ArrowDownRight size={17} /></a></div>
-        <div className="hero-footnote"><span className="hero-footnote-icon"><ShieldCheck size={16} /></span><span>{connection === 'offline' ? 'Data connection offline' : data?.mode === 'demo' ? 'Preview mode · sample paper session' : 'Live observations · paper orders only'}<br /><strong>No real money moves on this site.</strong></span></div>
-      </div>
-      <div className="hero-visual"><LiveCam data={data} /><div className="hero-visual-caption"><span>01 / The observation deck</span><span>Scroll to see what Vlad picked <ArrowDownRight size={15} /></span></div></div>
+    <div className="hero-visual"><Suspense fallback={null}><WaterField progress={progress} /></Suspense></div>
+    <div className="hero-scrim" aria-hidden="true" />
+    <div className="hero-topnote page-width"><span>A live experiment in simulated trading</span><span>{connection === 'offline' ? 'Ledger offline' : data?.mode === 'demo' ? 'Sample preview' : 'Paper portfolio'}</span></div>
+    <div className="hero-sighting" aria-hidden="true"><span>+</span><span>+</span><span>+</span><span>+</span><span>+</span></div>
+    <div className="hero-title-block">
+      <h1 className="hero-name" aria-label="Vlad"><span>VLAD</span><i>.</i></h1>
+      <div className="hero-strap page-width"><p>One fish. One portfolio.<br />Zero financial education.</p><a href="#premise">Scroll to explore <ArrowDown size={18} /></a></div>
     </div>
+    <div className="hero-scene-copy hero-scene-one" aria-hidden="true"><span>Movement becomes a decision</span><p>THE FISH<br />MAKES THE CALL.</p><small>One tank. Eight zones.</small></div>
+    <div className="hero-scene-copy hero-scene-two" aria-hidden="true"><span>Every choice leaves a trace</span><p>THE LEDGER<br />TELLS THE STORY.</p><small>Virtual money. Visible rules.</small></div>
+    <div className="hero-progress" aria-hidden="true"><span>01</span><i><b className="hero-progress-fill" /></i><span>03</span></div>
+    <div className="hero-disclosure page-width"><span className="status-dot" />Paper trading only. No real money moves here.</div>
   </section>;
 }
 
-function QuoteRibbon({ data }: { data: Snapshot | null }) {
-  return <div className="quote-ribbon"><div className="quote-ribbon-inner page-width"><span className="quote-title">The tank watchlist</span><div className="quote-items">{data?.quotes.length ? data.quotes.map((quote) => {
+function Premise() {
+  return <section className="premise-section light-section" id="premise"><div className="page-width">
+    <div className="chapter-label"><span>01 / The premise</span><span>Meet the fund manager</span></div>
+    <div className="premise-grid"><RevealTitle lines={['The market has', 'met its smallest', 'analyst.']} /><div className="premise-copy"><p>Vlad is a fish. His movements select a stock, then choose whether to buy or sell it in a virtual portfolio.</p><p>Every decision is visible. Every fill is simulated. The ledger starts with $10,000 that exists only on this website.</p><a className="text-link" href="#live">Watch the tank <ArrowDownRight size={20} /></a></div></div>
+  </div></section>;
+}
+
+function LiveStage({ data }: { data: Snapshot | null }) {
+  const streamReady = Boolean(data?.youtubeVideoId);
+  const selected = data?.signal.selectedSymbol || data?.trades[0]?.symbol;
+  return <section className="live-section dark-section" id="live"><div className="page-width">
+    <div className="chapter-label"><span>02 / The live tank</span><span>Vlad's world, uninterrupted</span></div>
+    <div className="chapter-heading"><RevealTitle lines={['Watch the', 'decision happen.']} /><p>The video is the public view of the tank. A separate local camera tracker turns Vlad's location into a paper-trading signal.</p></div>
+    <div className="live-grid"><div className="live-player"><div className="live-player-bar"><span><span className={streamReady ? 'status-dot is-ready' : 'status-dot'} />Vlad cam</span><span>{streamReady ? 'YouTube player configured' : 'Awaiting YouTube Live'}</span></div><div className="live-media reveal-media">
+      {streamReady ? <iframe src={`https://www.youtube-nocookie.com/embed/${data!.youtubeVideoId}?playsinline=1&rel=0`} title="Vlad the Fish Trader live tank stream" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /> : <><img src="/vlad-placeholder.png" alt="Generated temporary aquarium image; Vlad's stream has not been connected" /><div className="live-placeholder"><span>Temporary visual</span><strong>Vlad will be here.</strong><p>The YouTube Live stream will appear here when its video ID is ready.</p></div></>}
+    </div><div className="live-player-caption"><span>{streamReady ? 'Broadcast source / YouTube Live' : 'Broadcast source / pending'}</span><span>Stream and tracker are separate</span></div></div>
+    <aside className="live-readout"><span className="aside-label">{data?.signal.cameraConnected ? 'Current pick' : 'Last paper pick'}</span><strong className="current-pick">{selected || '--'}</strong><p>{data?.signal.cameraConnected ? data.signal.selectedSymbol ? 'Selected. Vlad is choosing BUY or SELL.' : 'The tracker is watching Vlad choose.' : 'Camera tracking is waiting to connect.'}</p><div className="live-status-row"><span>Camera tracker</span><strong>{data?.signal.cameraConnected ? 'Connected' : 'Offline'}</strong></div><div className="live-status-row"><span>Paper orders</span><strong>{data?.tradesCount ?? 0} recorded</strong></div><div className="live-status-row"><span>Market prices</span><strong>{data?.mode === 'demo' ? 'Scenario data' : data?.quotes.length ? 'Reference quotes' : 'Unavailable'}</strong></div><a className="text-link" href="#tank-map">See the tank map <ArrowDownRight size={19} /></a></aside></div>
+  </div></section>;
+}
+
+function QuoteStrip({ data }: { data: Snapshot | null }) {
+  return <div className="quote-strip" aria-label="Tank watchlist"><div className="quote-strip-inner page-width"><span className="quote-strip-label">Tank watchlist</span><div className="quote-list">{data?.quotes.length ? data.quotes.map((quote) => {
     const change = quote.previousClose ? (quote.price / quote.previousClose - 1) * 100 : 0;
-    return <div className="quote-item" key={quote.symbol}><strong>{quote.symbol}</strong><span>{money(quote.price)}</span><em className={change >= 0 ? 'positive' : 'negative'}>{signedPercent(change)}</em></div>;
-  }) : <span className="quote-empty">Reference prices are not connected</span>}</div><span className="quote-source">{data?.mode === 'demo' ? 'Scenario prices' : data?.lastQuoteAt ? `Quote as of ${relativeTime(data.lastQuoteAt)}` : 'Quotes offline'}</span></div></div>;
-}
-
-function MetricCard({ label, value, detail, trend, featured = false, icon }: { label: string; value: string; detail: string; trend?: number; featured?: boolean; icon?: React.ReactNode }) {
-  return <div className={`metric-card ${featured ? 'metric-featured' : ''}`}><div className="metric-head"><span>{label}</span>{icon && <span className="metric-icon">{icon}</span>}</div><div className="metric-value">{value}</div><div className="metric-detail">{typeof trend === 'number' && <span className={trend >= 0 ? 'metric-trend positive' : 'metric-trend negative'}>{trend >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}{signedPercent(trend)}</span>}<span>{detail}</span></div></div>;
-}
-
-function Overview({ data }: { data: Snapshot | null }) {
-  const lastPick = data?.signal.selectedSymbol || data?.trades[0]?.symbol;
-  return <section className="overview page-width" id="portfolio"><div className="overview-heading"><SectionHeading kicker="The paper fund" title="A portfolio with fins." description="A running record of Vlad's simulated positions, measured against the same starting cash placed in SPY." /><span className="data-stamp"><span />{data?.pricingLabel || 'Connecting to the ledger'}{data?.mode === 'live' && data.lastQuoteAt ? ` · as of ${relativeTime(data.lastQuoteAt)}` : ''}</span></div>
-    <div className="metric-grid"><MetricCard featured label="Portfolio value" value={data ? money(data.portfolioValue) : '—'} detail={data ? `${signedMoney(data.totalPnl)} since inception` : 'Waiting for the ledger'} trend={data?.totalPnlPercent} icon={<Waves size={21} />} /><MetricCard label="Today’s P&L" value={data ? signedMoney(data.todayPnl) : '—'} detail="New York market day" trend={data?.todayPnlPercent} icon={<Activity size={20} />} /><MetricCard label={data?.signal.cameraConnected ? 'Current pick' : 'Last paper pick'} value={lastPick || '—'} detail={data?.signal.cameraConnected ? data.signal.selectedSymbol ? 'Waiting for buy or sell' : 'Vlad is choosing' : 'Tracker awaiting Vlad'} icon={<Crosshair size={20} />} /><MetricCard label="Virtual cash" value={data ? money(data.cash) : '—'} detail={data ? `${data.tradesCount} paper trades on record` : 'Starting at $10,000'} icon={<ShieldCheck size={20} />} /></div>
-  </section>;
+    return <span className="quote-entry" key={quote.symbol}><strong>{quote.symbol}</strong><span>{money(quote.price)}</span><em className={change >= 0 ? 'positive' : 'negative'}>{signedPercent(change)}</em></span>;
+  }) : <span className="quote-empty">Reference prices are not connected</span>}</div><span className="quote-source">{data?.mode === 'demo' ? 'Scenario prices' : data?.lastQuoteAt ? `As of ${relativeTime(data.lastQuoteAt)}` : 'Quotes offline'}</span></div></div>;
 }
 
 type Range = '1D' | '7D' | 'ALL';
 function pathFor(points: EquityPoint[], key: 'value' | 'benchmarkValue', minimum: number, maximum: number) {
-  if (points.length === 0) return '';
-  const height = 240;
-  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${(index / Math.max(1, points.length - 1)) * 940 + 30} ${30 + height - ((point[key] - minimum) / Math.max(1, maximum - minimum)) * height}`).join(' ');
+  if (!points.length) return '';
+  return points.map((point, index) => `${index ? 'L' : 'M'} ${(index / Math.max(1, points.length - 1)) * 940 + 30} ${30 + 240 - ((point[key] - minimum) / Math.max(1, maximum - minimum)) * 240}`).join(' ');
 }
 
 function PerformanceChart({ data }: { data: Snapshot | null }) {
   const [range, setRange] = useState<Range>('ALL');
   const [hover, setHover] = useState<number | null>(null);
+  const chartRoot = useRef<HTMLDivElement>(null);
   const all = data?.equity || [];
   const points = useMemo(() => {
     const cutoff = Date.now() - (range === '1D' ? 86_400_000 : range === '7D' ? 7 * 86_400_000 : Infinity);
@@ -145,17 +188,44 @@ function PerformanceChart({ data }: { data: Snapshot | null }) {
   const values = points.flatMap((point) => [point.value, point.benchmarkValue]);
   const minimum = values.length ? Math.min(...values) - 10 : 9_950;
   const maximum = values.length ? Math.max(...values) + 10 : 10_050;
-  const valuePath = pathFor(points, 'value', minimum, maximum);
-  const benchmarkPath = pathFor(points, 'benchmarkValue', minimum, maximum);
   const active = hover === null ? points.at(-1) : points[hover];
-  const trend = data?.totalPnlPercent || 0;
-  return <div className="performance-panel"><div className="panel-head"><div><span className="panel-kicker">Portfolio performance</span><h3>Vlad versus the index</h3></div><div className="range-controls" aria-label="Chart time range">{(['1D', '7D', 'ALL'] as const).map((option) => <button type="button" key={option} className={range === option ? 'selected' : ''} onClick={() => { setRange(option); setHover(null); }} aria-pressed={range === option}>{option === 'ALL' ? 'All' : option}</button>)}</div></div>
-    <div className="chart-summary"><strong>{data ? money(active?.value ?? data.portfolioValue) : '—'}</strong><span className={trend >= 0 ? 'positive' : 'negative'}>{data ? signedPercent(trend) : '—'} all time</span><span className="chart-date">{active ? time(active.at) : 'Waiting for data'}</span></div>
-    <div className="chart-wrap"><div className="chart-y-axis"><span>{money(maximum, 0)}</span><span>{money((maximum + minimum) / 2, 0)}</span><span>{money(minimum, 0)}</span></div><svg className="performance-chart" viewBox="0 0 1000 300" preserveAspectRatio="none" role="img" aria-label="Portfolio value chart comparing Vlad and a SPY buy-and-hold benchmark" onPointerMove={(event) => { if (!points.length) return; const box = event.currentTarget.getBoundingClientRect(); setHover(Math.min(points.length - 1, Math.max(0, Math.round(((event.clientX - box.left) / box.width) * (points.length - 1))))); }} onPointerLeave={() => setHover(null)}>
-      <defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#34bda8" stopOpacity=".27" /><stop offset="100%" stopColor="#34bda8" stopOpacity="0" /></linearGradient></defs>
-      {[30, 150, 270].map((y) => <line key={y} x1="30" y1={y} x2="970" y2={y} className="chart-grid" />)}
-      {points.length > 1 && <><path d={`${valuePath} L 970 270 L 30 270 Z`} fill="url(#chartFill)" /><path d={benchmarkPath} fill="none" stroke="#a1aaa7" strokeWidth="2.5" strokeDasharray="6 7" vectorEffect="non-scaling-stroke" /><path d={valuePath} fill="none" stroke="#188d7d" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />{hover !== null && active && <><line x1={(hover / Math.max(1, points.length - 1)) * 940 + 30} y1="30" x2={(hover / Math.max(1, points.length - 1)) * 940 + 30} y2="270" className="chart-cursor" /><circle cx={(hover / Math.max(1, points.length - 1)) * 940 + 30} cy={30 + 240 - ((active.value - minimum) / Math.max(1, maximum - minimum)) * 240} r="6" fill="#188d7d" stroke="white" strokeWidth="3" vectorEffect="non-scaling-stroke" /></>}</>}
-    </svg></div><div className="chart-footer"><div className="chart-legend"><span><i className="legend-vlad" />Vlad's portfolio</span><span><i className="legend-spy" />SPY benchmark</span></div><span>{data?.mode === 'demo' ? 'Preview history · scenario prices' : 'Paper results · reference quotes'}</span></div></div>;
+  const x = hover === null ? 0 : (hover / Math.max(1, points.length - 1)) * 940 + 30;
+  useEffect(() => {
+    if (!chartRoot.current || points.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const context = gsap.context(() => {
+      const path = chartRoot.current!.querySelector<SVGPathElement>('.chart-vlad-path');
+      const area = chartRoot.current!.querySelector<SVGPathElement>('.chart-area');
+      if (!path || !area) return;
+      const length = path.getTotalLength();
+      gsap.set(path, { strokeDasharray: length, strokeDashoffset: length });
+      gsap.set(area, { opacity: 0 });
+      gsap.timeline({ scrollTrigger: { trigger: chartRoot.current, start: 'top 82%', once: true } })
+        .to(path, { strokeDashoffset: 0, duration: 1.5, ease: 'power2.out' }, 0)
+        .to(area, { opacity: 1, duration: .9, ease: 'power2.out' }, .5);
+    }, chartRoot);
+    return () => context.revert();
+  }, [range, points.length]);
+  return <div className="performance-chart-block" ref={chartRoot}><div className="chart-heading"><div><span>Performance over time</span><strong>{data ? money(active?.value ?? data.portfolioValue) : '--'}</strong></div><div className="range-controls" aria-label="Chart time range">{(['1D', '7D', 'ALL'] as const).map((option) => <button type="button" key={option} className={range === option ? 'selected' : ''} aria-pressed={range === option} onClick={() => { setRange(option); setHover(null); }}>{option === 'ALL' ? 'All' : option}</button>)}</div></div>
+    <div className="chart-canvas"><div className="chart-y-axis"><span>{money(maximum, 0)}</span><span>{money((minimum + maximum) / 2, 0)}</span><span>{money(minimum, 0)}</span></div><svg viewBox="0 0 1000 300" preserveAspectRatio="none" role="img" aria-label="Line chart comparing Vlad's paper portfolio to a SPY buy-and-hold benchmark" onPointerMove={(event) => { if (!points.length) return; const box = event.currentTarget.getBoundingClientRect(); setHover(Math.min(points.length - 1, Math.max(0, Math.round(((event.clientX - box.left) / box.width) * (points.length - 1))))); }} onPointerLeave={() => setHover(null)}>
+      <defs><linearGradient id="vlad-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ef8a65" stopOpacity=".2" /><stop offset="100%" stopColor="#ef8a65" stopOpacity="0" /></linearGradient></defs>
+      {[30, 150, 270].map((y) => <line className="chart-gridline" key={y} x1="30" y1={y} x2="970" y2={y} />)}
+      {points.length > 1 && <><path className="chart-area" d={`${pathFor(points, 'value', minimum, maximum)} L 970 270 L 30 270 Z`} fill="url(#vlad-chart-fill)" /><path d={pathFor(points, 'benchmarkValue', minimum, maximum)} className="chart-spy-path" /><path d={pathFor(points, 'value', minimum, maximum)} className="chart-vlad-path" />{hover !== null && active && <><line className="chart-cursor" x1={x} x2={x} y1="30" y2="270" /><circle className="chart-point" cx={x} cy={30 + 240 - ((active.value - minimum) / Math.max(1, maximum - minimum)) * 240} r="6" /></>}</>}
+    </svg></div><div className="chart-foot"><div><span><i className="legend-vlad" />Vlad</span><span><i className="legend-spy" />SPY benchmark</span></div><span>{active ? time(active.at) : 'Waiting for data'} / {data?.mode === 'demo' ? 'Sample history' : 'Reference quotes'}</span></div></div>;
+}
+
+function Holdings({ data }: { data: Snapshot | null }) {
+  return <div className="holdings-block"><div className="subsection-heading"><h3>Inside the portfolio</h3><span>Invested value {data ? money(data.portfolioValue - data.cash) : '--'}</span></div><div className="table-scroll"><table className="holdings-table"><thead><tr><th>Asset</th><th>Shares</th><th>Market value</th><th>Unrealized P&L</th><th>Day move</th></tr></thead><tbody>{data?.positions.length ? data.positions.map((position) => <tr key={position.symbol}><td><strong>{position.symbol}</strong><small>{SYMBOLS.find((item) => item.symbol === position.symbol)?.name}</small></td><td>{number(position.shares, 4)}</td><td>{money(position.marketValue)}</td><td className={position.unrealizedPnl >= 0 ? 'positive' : 'negative'}>{signedMoney(position.unrealizedPnl)}</td><td className={position.dayChangePercent >= 0 ? 'positive' : 'negative'}>{signedPercent(position.dayChangePercent)}</td></tr>) : <tr><td colSpan={5} className="empty-table">No positions yet. Vlad's first completed buy will appear here.</td></tr>}</tbody></table></div></div>;
+}
+
+function Portfolio({ data }: { data: Snapshot | null }) {
+  const lastPick = data?.signal.selectedSymbol || data?.trades[0]?.symbol;
+  return <section className="portfolio-section light-section" id="portfolio"><div className="page-width"><div className="chapter-label"><span>03 / The paper portfolio</span><span>{data?.pricingLabel || 'Connecting to the ledger'}</span></div><div className="chapter-heading portfolio-heading"><RevealTitle lines={['The numbers', 'behind the swim.']} /><p>Vlad began with {money(data?.initialCash || 10000, 0)} of virtual cash. The portfolio and SPY benchmark move from the same starting point.</p></div>
+    <div className="portfolio-value-block"><span>Portfolio value</span><strong>{data ? money(data.portfolioValue) : '--'}</strong><p className={(data?.totalPnl || 0) >= 0 ? 'positive' : 'negative'}>{data ? `${signedMoney(data.totalPnl)} (${signedPercent(data.totalPnlPercent)}) since inception` : 'Waiting for the ledger'}</p></div>
+    <div className="portfolio-metrics"><div><span>Today's P&L</span><strong className={(data?.todayPnl || 0) >= 0 ? 'positive' : 'negative'}>{data ? signedMoney(data.todayPnl) : '--'}</strong><small>New York market day</small></div><div><span>Virtual cash</span><strong>{data ? money(data.cash) : '--'}</strong><small>Available for paper orders</small></div><div><span>{data?.signal.cameraConnected ? 'Current pick' : 'Last paper pick'}</span><strong>{lastPick || '--'}</strong><small>{data?.signal.cameraConnected ? 'Vlad is choosing' : 'Tracker awaiting Vlad'}</small></div><div><span>Paper trades</span><strong>{data?.tradesCount ?? '--'}</strong><small>Recorded in the ledger</small></div></div>
+    <PerformanceChart data={data} />
+    <div className="benchmark-block"><div><span>Head to head</span><h3>Vlad vs. the index.</h3><p>Both begin at {money(data?.initialCash || 10000, 0)} in virtual value. This is a comparison, not a prediction.</p></div><div className="benchmark-scores"><div><span>Vlad</span><strong className={(data?.totalPnlPercent || 0) >= 0 ? 'positive' : 'negative'}>{data ? signedPercent(data.totalPnlPercent) : '--'}</strong></div><div><span>SPY</span><strong className={(data?.benchmarkPnlPercent || 0) >= 0 ? 'positive' : 'negative'}>{data ? signedPercent(data.benchmarkPnlPercent) : '--'}</strong></div></div></div>
+    <Holdings data={data} />
+  </div></section>;
 }
 
 const zones: Array<{ label: ZoneCode; x: number; y: number; w: number; h: number }> = [
@@ -164,25 +234,10 @@ const zones: Array<{ label: ZoneCode; x: number; y: number; w: number; h: number
   { label: 'BUY', x: 0, y: 72, w: 50, h: 28 }, { label: 'SELL', x: 50, y: 72, w: 50, h: 28 },
 ];
 
-function TankMap({ data }: { data: Snapshot | null }) {
+function TankDecision({ data }: { data: Snapshot | null }) {
   const signal = data?.signal;
-  const stage = !signal?.cameraConnected ? 'Tracker waiting' : signal.stage === 'cooldown' ? 'Trade cooldown' : signal.selectedSymbol ? `${signal.selectedSymbol} selected` : signal.zone ? `Vlad is in ${signal.zone}` : 'Searching for Vlad';
-  return <div className="tank-panel"><div className="panel-head"><div><span className="panel-kicker">Decision engine</span><h3>The tank is the trading floor.</h3></div><span className={`tracker-badge ${signal?.cameraConnected ? 'connected' : ''}`}><span />{signal?.cameraConnected ? 'Tracking' : 'Offline'}</span></div>
-    <div className="tank-layout"><div className="tank-map" role="img" aria-label="Tank map with six stock selection zones above buy and sell action zones">
-      <div className="tank-grain" />{zones.map((zone) => <div key={zone.label} className={`tank-zone ${zone.label === 'BUY' || zone.label === 'SELL' ? 'action-zone' : ''} ${signal?.zone === zone.label ? 'active' : ''} ${signal?.selectedSymbol === zone.label ? 'armed' : ''}`} style={{ left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.w}%`, height: `${zone.h}%` }}><span>{zone.label}</span></div>)}
-      {signal?.cameraConnected && signal.x !== null && signal.y !== null && <span className="fish-marker" style={{ left: `${signal.x * 100}%`, top: `${signal.y * 100}%` }}><Fish size={17} /></span>}
-      <span className="tank-axis tank-axis-x">X / tank width</span><span className="tank-axis tank-axis-y">Y / tank depth</span>
-    </div><div className="tank-readout"><div className="readout-icon"><Scan size={23} /></div><span className="readout-label">Current signal</span><strong>{stage}</strong><p>{!signal?.cameraConnected ? 'Connect the local camera tracker to see Vlad’s location here.' : signal.selectedSymbol ? 'The next five-second stay in BUY or SELL can create a paper trade.' : 'A five-second stay in a stock zone locks the pick.'}</p><div className="dwell-row"><span>Dwell progress</span><strong>{Math.round((signal?.dwellProgress || 0) * 100)}%</strong></div><div className="progress-track"><span style={{ width: `${(signal?.dwellProgress || 0) * 100}%` }} /></div><div className="readout-meta"><span>Hold <strong>{(data?.rules.dwellMs || 5000) / 1000}s</strong></span><span>Cooldown <strong>{(data?.rules.cooldownMs || 30000) / 1000}s</strong></span></div></div></div>
-    <div className="tank-foot">The YouTube player shows the broadcast. Trading signals come from a separate camera tracker, so stream delay cannot change an order.</div>
-  </div>;
-}
-
-function PerformanceSection({ data }: { data: Snapshot | null }) {
-  return <section className="performance-section page-width"><div className="performance-grid"><PerformanceChart data={data} /><div className="race-panel"><div className="race-head"><span className="panel-kicker">Head-to-head</span><h3>Fish vs. benchmark</h3><p>Both start with {money(data?.initialCash || 10000)} in virtual value.</p></div><div className="race-track"><div className="race-row"><div><span className="race-avatar"><BrandMark size={23} /></span><strong>Vlad</strong></div><span className={(data?.totalPnlPercent || 0) >= 0 ? 'positive' : 'negative'}>{data ? signedPercent(data.totalPnlPercent) : '—'}</span></div><div className="race-bar"><span style={{ width: `${Math.min(94, Math.max(16, 50 + (data?.totalPnlPercent || 0) * 8))}%` }} /></div><div className="race-row"><div><span className="race-avatar race-spy">S</span><strong>S&P 500</strong></div><span className={(data?.benchmarkPnlPercent || 0) >= 0 ? 'positive' : 'negative'}>{data ? signedPercent(data.benchmarkPnlPercent) : '—'}</span></div><div className="race-bar race-bar-spy"><span style={{ width: `${Math.min(94, Math.max(16, 50 + (data?.benchmarkPnlPercent || 0) * 8))}%` }} /></div></div><div className="race-verdict"><span>Current lead</span><strong>{data ? Math.abs(data.totalPnlPercent - data.benchmarkPnlPercent) < .005 ? 'Too close to call' : data.totalPnlPercent > data.benchmarkPnlPercent ? 'Vlad, for now.' : 'The index, for now.' : 'Waiting for prices'}</strong><small>A comparison, not a prediction.</small></div></div></div><TankMap data={data} /></section>;
-}
-
-function Holdings({ data }: { data: Snapshot | null }) {
-  return <section className="holdings-section page-width"><div className="holdings-head"><SectionHeading kicker="Inside the bowl" title="What Vlad owns." description="In a connected session, positions change only after Vlad completes a valid paper signal. Preview holdings are labelled sample data." /><div className="holdings-total"><span>Invested value</span><strong>{data ? money(data.portfolioValue - data.cash) : '—'}</strong></div></div><div className="holdings-table-wrap"><table className="holdings-table"><thead><tr><th>Asset</th><th>Shares</th><th>Market value</th><th>Unrealized P&L</th><th>Day move</th></tr></thead><tbody>{data?.positions.length ? data.positions.map((position) => <tr key={position.symbol}><td><span className="asset-symbol">{position.symbol}</span><span className="asset-name">{SYMBOLS.find((item) => item.symbol === position.symbol)?.name}</span></td><td>{number(position.shares, 4)}</td><td>{money(position.marketValue)}</td><td className={position.unrealizedPnl >= 0 ? 'positive' : 'negative'}>{signedMoney(position.unrealizedPnl)}</td><td className={position.dayChangePercent >= 0 ? 'positive' : 'negative'}>{signedPercent(position.dayChangePercent)}</td></tr>) : <tr><td colSpan={5} className="empty-table">No positions yet. Vlad’s first completed buy will appear here.</td></tr>}</tbody></table></div></section>;
+  const stage = !signal?.cameraConnected ? 'Waiting for Vlad' : signal.stage === 'cooldown' ? 'Trade cooldown' : signal.selectedSymbol ? `${signal.selectedSymbol} selected` : signal.zone ? `In ${signal.zone}` : 'Looking for Vlad';
+  return <section className="decision-section dark-section" id="tank-map"><div className="page-width"><div className="chapter-label"><span>04 / The decision map</span><span>Eight zones. One fish.</span></div><div className="chapter-heading"><RevealTitle lines={['Every swim', 'has a consequence.']} /><p>Six zones select an asset. Two zones choose a side. Vlad must stay in each long enough for the camera tracker to confirm the move.</p></div><div className="decision-grid"><div className="tank-map reveal-media" role="img" aria-label="Tank map with six stock zones above BUY and SELL zones"><div className="tank-map-texture" />{zones.map((zone) => <div key={zone.label} className={`tank-zone ${zone.label === 'BUY' || zone.label === 'SELL' ? 'action-zone' : ''} ${signal?.zone === zone.label ? 'active' : ''} ${signal?.selectedSymbol === zone.label ? 'armed' : ''}`} style={{ left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.w}%`, height: `${zone.h}%` }}><span>{zone.label}</span></div>)}{signal?.cameraConnected && signal.x !== null && signal.y !== null && <span className="fish-marker" style={{ left: `${signal.x * 100}%`, top: `${signal.y * 100}%` }}><BrandMark size={22} /></span>}</div><div className="decision-readout"><span className="aside-label">Tracker state</span><strong>{stage}</strong><p>{!signal?.cameraConnected ? 'Connect Vlad\'s local camera feed to show his position and dwell progress here.' : signal.selectedSymbol ? 'A completed stay in BUY or SELL can create a paper trade.' : 'A completed stay in a stock zone locks Vlad\'s pick.'}</p><div className="dwell-heading"><span>Dwell progress</span><strong>{Math.round((signal?.dwellProgress || 0) * 100)}%</strong></div><div className="dwell-track"><span style={{ width: `${(signal?.dwellProgress || 0) * 100}%` }} /></div><div className="decision-rules"><div><span>Hold time</span><strong>{(data?.rules.dwellMs || 5000) / 1000}s</strong></div><div><span>Cooldown</span><strong>{(data?.rules.cooldownMs || 30000) / 1000}s</strong></div><div><span>Paper order</span><strong>{money(data?.rules.orderNotional || 500, 0)}</strong></div></div></div></div><p className="decision-footnote">The YouTube player shows the broadcast. Trading signals arrive from a separate camera tracker, so stream delay cannot change an order.</p></div></section>;
 }
 
 function TradeHistory({ data }: { data: Snapshot | null }) {
@@ -194,26 +249,61 @@ function TradeHistory({ data }: { data: Snapshot | null }) {
   const newestRef = useRef<number | undefined>(newest);
   useEffect(() => {
     if (newestRef.current && newest && newest !== newestRef.current && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      gsap.fromTo('.trade-row:first-child', { backgroundColor: '#c9f5e7' }, { backgroundColor: 'transparent', duration: 2.4, ease: 'power2.out' });
+      gsap.fromTo('.trade-row:first-child', { backgroundColor: 'rgba(239,138,101,.22)' }, { backgroundColor: 'transparent', duration: 2.2 });
     }
     newestRef.current = newest;
   }, [newest]);
-  return <section className="journal-section" id="journal"><div className="page-width journal-grid"><div className="journal-intro"><SectionHeading kicker="The public record" title="Every fin movement leaves a trace." description="Selections, executed paper trades and skipped signals stay visible, so the story can be checked against the rules." light /><div className="journal-note"><ShieldCheck size={22} /><p>Every dollar and share on this page is virtual. A sample trade is labelled as such; camera trades appear only after a connected tracker sends a valid signal.</p></div></div><div className="journal-content"><div className="trade-panel"><div className="trade-panel-header"><div><span className="panel-kicker">Ledger</span><h3>Trade history</h3></div><div className="trade-filters" aria-label="Filter trades">{(['ALL', 'BUY', 'SELL'] as const).map((option) => <button type="button" key={option} className={filter === option ? 'selected' : ''} aria-pressed={filter === option} onClick={() => { setFilter(option); setExpanded(false); }}>{option === 'ALL' ? 'All' : option === 'BUY' ? 'Buys' : 'Sells'}</button>)}</div></div><div className="trade-list">{shown.length ? shown.map((trade: Trade) => <div className="trade-row" key={trade.id}><span className={`trade-side ${trade.side === 'BUY' ? 'buy' : 'sell'}`}>{trade.side === 'BUY' ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}</span><div className="trade-main"><strong>{trade.side === 'BUY' ? 'Bought' : 'Sold'} {trade.symbol}</strong><span>{number(trade.shares, 4)} shares at {money(trade.price)} · {trade.source === 'sample' ? 'Sample' : 'Camera'}</span></div><div className="trade-end"><strong>{money(trade.notional)}</strong><span>{relativeTime(trade.executedAt)}</span></div></div>) : <div className="trade-empty">No {filter === 'ALL' ? '' : filter.toLowerCase() + ' '}paper trades to show yet.</div>}</div>{trades.length > 5 && <button className="trade-more" type="button" onClick={() => setExpanded(!expanded)}>{expanded ? 'Show fewer trades' : `Show all ${trades.length} trades`}<ChevronDown size={17} className={expanded ? 'rotated' : ''} /></button>}</div><div className="activity-panel"><div className="activity-head"><span className="panel-kicker">Signal log</span><span>Latest first</span></div>{data?.activity.length ? data.activity.slice(0, 5).map((entry) => <div className="activity-row" key={entry.id}><span className={`activity-dot ${entry.kind}`} /><p>{entry.message}</p><time>{relativeTime(entry.createdAt)}</time></div>) : <p className="activity-empty">The first signal will appear here.</p>}</div></div></div></section>;
+  return <section className="journal-section dark-section" id="journal"><div className="page-width"><div className="chapter-label"><span>05 / The public record</span><span>Recent decisions, in public</span></div><div className="chapter-heading"><h2>Every move<br />on the record.</h2><p>Recent paper trades, selections, and skipped signals are visible. Sample entries are labelled as samples.</p></div><div className="journal-grid"><div className="trade-history"><div className="subsection-heading"><h3>Trade history</h3><div className="trade-filters" aria-label="Filter trades">{(['ALL', 'BUY', 'SELL'] as const).map((option) => <button type="button" key={option} className={filter === option ? 'selected' : ''} aria-pressed={filter === option} onClick={() => { setFilter(option); setExpanded(false); }}>{option === 'ALL' ? 'All' : option === 'BUY' ? 'Buys' : 'Sells'}</button>)}</div></div><div className="trade-list">{shown.length ? shown.map((trade: Trade) => <div className="trade-row" key={trade.id}><span className={`trade-direction ${trade.side.toLowerCase()}`}>{trade.side === 'BUY' ? <ArrowDownRight size={20} /> : <ArrowUpRight size={20} />}</span><div className="trade-name"><strong>{trade.side === 'BUY' ? 'Bought' : 'Sold'} {trade.symbol}</strong><span>{number(trade.shares, 4)} shares at {money(trade.price)} / {trade.source === 'sample' ? 'Sample' : 'Camera'}</span></div><div className="trade-value"><strong>{money(trade.notional)}</strong><time>{relativeTime(trade.executedAt)}</time></div></div>) : <div className="trade-empty">No recent {filter === 'ALL' ? '' : filter.toLowerCase() + ' '}paper trades in this view.</div>}</div>{trades.length > 5 && <button className="show-more" type="button" onClick={() => setExpanded(!expanded)}>{expanded ? 'Show fewer trades' : `Show ${trades.length} recent trades`}<ChevronDown size={17} className={expanded ? 'rotated' : ''} /></button>}</div><aside className="signal-log"><div className="subsection-heading"><h3>Signal log</h3><span>Latest first</span></div>{data?.activity.length ? data.activity.slice(0, 6).map((entry) => <div className="signal-entry" key={entry.id}><span className={`signal-mark ${entry.kind}`} /><p>{entry.message}</p><time>{relativeTime(entry.createdAt)}</time></div>) : <p className="trade-empty">The first signal will appear here.</p>}</aside></div><div className="journal-disclosure">Every dollar and share here is virtual. Camera trades require a connected tracker; the default preview contains sample activity. This view shows the latest 50 trades; the ledger retains the full history.</div></div></section>;
 }
 
 function HowItWorks({ data }: { data: Snapshot | null }) {
-  return <section className="how-section page-width" id="how-it-works"><SectionHeading kicker="Under the surface" title="How a swim becomes a signal." description="A deliberate two-step rule keeps the fish in charge while limiting accidental repeat trades." /><div className="process-grid"><div className="process-step"><span className="process-icon"><Radio size={24} /></span><span className="process-number">01</span><h3>The camera watches</h3><p>A local tracker observes Vlad’s position in the tank. The YouTube Live player broadcasts the same scene to viewers.</p></div><div className="process-step"><span className="process-icon"><Crosshair size={24} /></span><span className="process-number">02</span><h3>Vlad picks a stock</h3><p>Six tank zones represent SPY, NVDA, TSLA, AAPL, GOOGL and MSFT. A stay of {(data?.rules.dwellMs || 5000) / 1000} seconds selects one.</p></div><div className="process-step"><span className="process-icon"><Waves size={24} /></span><span className="process-number">03</span><h3>Vlad chooses a side</h3><p>He then stays in BUY or SELL for another five seconds. A cooldown stops one lingering swim from repeating the order.</p></div><div className="process-step"><span className="process-icon"><ShieldCheck size={24} /></span><span className="process-number">04</span><h3>The ledger records it</h3><p>A fresh reference price fills a virtual {money(data?.rules.orderNotional || 500, 0)} order when cash or shares allow it. No broker or wallet is connected.</p></div></div><div className="process-callout" id="methodology"><div><CircleHelp size={25} /><strong>Why two steps?</strong></div><p>The fish must select an asset and then an action. Both require a timed stay. Low-confidence tracking, stale prices, closed markets and insufficient virtual funds cause a visible skip, not a trade.</p><a href="/docs/METHODOLOGY.md" target="_blank" rel="noreferrer">Read the full methodology <ArrowRight size={16} /></a></div></section>;
+  const steps = [
+    ['The camera watches', 'A local tracker measures Vlad\'s position. The YouTube Live player broadcasts the tank to viewers.'],
+    ['Vlad picks a stock', `A ${((data?.rules.dwellMs || 5000) / 1000).toFixed(0)}-second stay in a stock zone selects SPY, NVDA, TSLA, AAPL, GOOGL, or MSFT.`],
+    ['Vlad chooses a side', 'Another timed stay in BUY or SELL confirms the action. A cooldown prevents repeat orders from one lingering swim.'],
+    ['The ledger records it', `A fresh reference price fills a virtual ${money(data?.rules.orderNotional || 500, 0)} order when cash or shares allow it.`],
+  ];
+  return <section className="method-section light-section" id="how-it-works"><div className="page-width"><div className="chapter-label"><span>06 / The method</span><span>A fish, with rules</span></div><div className="chapter-heading"><h2>How a swim<br />becomes a signal.</h2><p>Two deliberate stays make the fish's choice inspectable and limit accidental orders.</p></div><div className="method-list">{steps.map(([title, description], index) => <div className="method-step" key={title}><span>{String(index + 1).padStart(2, '0')}</span><h3>{title}</h3><p>{description}</p><ArrowDownRight size={24} /></div>)}</div><div className="method-note" id="methodology"><p>Low-confidence tracking, stale or unavailable prices, closed markets, and insufficient virtual funds cause a visible skip.</p><a className="text-link" href="/docs/METHODOLOGY.md" target="_blank" rel="noreferrer">Read the full methodology <ArrowUpRight size={20} /></a></div></div></section>;
 }
 
-function Research() {
-  return <section className="research-section"><div className="page-width research-grid"><div><SectionHeading kicker="Field notes" title="A fish story with receipts." description="The project borrows the spectacle of fish-driven trading, then keeps the money, prices and decision rules explicit." /><a className="research-primary" href="https://www.youtube.com/watch?v=USKD3vPD6ZA" target="_blank" rel="noreferrer"><div className="research-cover"><img src="/vlad-placeholder.png" alt="Aquarium scene used as a temporary editorial visual" /><span>Temporary art / Watch the reference <ExternalLink size={17} /></span></div><div className="research-text"><span>Reference film</span><strong>I Gave My Goldfish $50,000 to Trade Stocks</strong><p>Michael Reeves’ video is the creative spark. Vlad’s rules, data and visuals here are independently built.</p></div></a></div><div className="research-links"><div className="research-link-intro"><span>Reading list</span><p>Primary sources behind the public interface and its constraints.</p></div><a href="https://docs.ponsfamily.com/v2" target="_blank" rel="noreferrer"><span>01</span><div><strong>Pons v2 protocol docs</strong><small>Tokenized-stock pairs are a protocol context, not real stock trades on this site.</small></div><ExternalLink size={17} /></a><a href="https://developers.google.com/youtube/player_parameters" target="_blank" rel="noreferrer"><span>02</span><div><strong>YouTube embed documentation</strong><small>How the public live video reaches the site.</small></div><ExternalLink size={17} /></a><a href="https://twelvedata.com/docs/markets/market-state" target="_blank" rel="noreferrer"><span>03</span><div><strong>Twelve Data quote reference</strong><small>Optional server-side market quote adapter for paper fills.</small></div><ExternalLink size={17} /></a><a href="https://x.com/flxrnc/status/2117318336837017846" target="_blank" rel="noreferrer"><span>04</span><div><strong>Motion tooling reference</strong><small>GSAP and Three.js are used for the browser experience.</small></div><ExternalLink size={17} /></a></div></div></section>;
+function Sources() {
+  const links = [
+    ['Michael Reeves', 'The original goldfish-trading film that sparked the idea.', 'https://www.youtube.com/watch?v=USKD3vPD6ZA'],
+    ['Pons v2 protocol', 'Protocol context for tokenized stock pairing; not connected to these paper trades.', 'https://docs.ponsfamily.com/v2'],
+    ['YouTube player', 'The public live video embed used when Vlad\'s stream is ready.', 'https://developers.google.com/youtube/player_parameters'],
+    ['Twelve Data', 'Optional source of server-side reference quotes for paper fills.', 'https://twelvedata.com/docs/markets/market-state'],
+    ['Motion reference', 'The supplied repo list that led to GSAP and Three.js on this site.', 'https://x.com/flxrnc/status/2117318336837017846'],
+    ['Visual reference', 'Lusion\'s About page informed the scale, pacing, and monochrome direction.', 'https://lusion.co/about/'],
+  ];
+  return <section className="sources-section light-section" id="sources"><div className="page-width"><div className="chapter-label"><span>07 / Field notes</span><span>Sources and references</span></div><div className="sources-grid"><div><h2>A fish story<br />with receipts.</h2><p>This project takes the spectacle of fish-driven trading and makes its money, prices, decisions, and limits visible.</p><a className="text-link" href="/docs/SOURCES.md" target="_blank" rel="noreferrer">View the complete source list <ArrowUpRight size={20} /></a></div><div className="sources-list">{links.map(([title, description, url], index) => <a href={url} target="_blank" rel="noreferrer" key={title}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{title}</strong><small>{description}</small></div><ExternalLink size={19} /></a>)}</div></div></div></section>;
 }
 
 function Footer({ data }: { data: Snapshot | null }) {
-  return <footer className="site-footer"><div className="page-width footer-main"><div><div className="footer-brand"><BrandMark size={44} /><span>VLAD.</span></div><p>One fish. One portfolio.<br />Zero financial education.</p></div><div className="footer-links"><div><strong>Explore</strong><a href="#live">Live tank</a><a href="#portfolio">Portfolio</a><a href="#journal">Trade history</a></div><div><strong>Understand</strong><a href="#how-it-works">How it works</a><a href="/docs/METHODOLOGY.md" target="_blank" rel="noreferrer">Methodology</a><a href="https://docs.ponsfamily.com/v2" target="_blank" rel="noreferrer">Pons v2 docs</a></div></div></div><div className="footer-bottom page-width"><span>© {new Date().getFullYear()} Vlad the Fish Trader</span><span>Simulated portfolio · {data?.mode === 'demo' ? 'sample preview data' : 'paper orders'} · no financial advice</span><a href="#top">Back to top ↑</a></div></footer>;
+  return <footer className="site-footer"><div className="page-width"><div className="footer-top"><span>One fish. One portfolio. Zero financial education.</span><a href="#top">Back to top <ArrowUpRight size={19} /></a></div><div className="footer-title" aria-hidden="true">VLAD<span>.</span></div><div className="footer-bottom"><span>© {new Date().getFullYear()} Vlad the Fish Trader</span><span>Simulated portfolio / {data?.mode === 'demo' ? 'sample preview data' : 'paper orders'} / no financial advice</span><a href="#methodology">Methodology</a></div></div></footer>;
+}
+
+function useSectionMotion() {
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const context = gsap.context(() => {
+      document.querySelectorAll<HTMLElement>('.reveal-title').forEach((heading) => {
+        gsap.fromTo(heading.querySelectorAll('.reveal-line > span'), { yPercent: 105 }, { yPercent: 0, duration: 1.05, stagger: .13, ease: 'power4.out', scrollTrigger: { trigger: heading, start: 'top 87%', once: true } });
+      });
+      document.querySelectorAll<HTMLElement>('.journal-section .chapter-heading h2, .method-section .chapter-heading h2, .sources-grid h2').forEach((heading) => {
+        gsap.fromTo(heading, { y: 55, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: heading, start: 'top 86%', once: true } });
+      });
+      document.querySelectorAll<HTMLElement>('.reveal-media').forEach((element) => {
+        gsap.fromTo(element, { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 1.25, ease: 'power3.inOut', scrollTrigger: { trigger: element, start: 'top 86%', once: true } });
+      });
+      gsap.fromTo('.footer-title', { yPercent: 55, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1.2, ease: 'power3.out', scrollTrigger: { trigger: '.site-footer', start: 'top 80%', once: true } });
+    });
+    const refresh = requestAnimationFrame(() => ScrollTrigger.refresh());
+    return () => { cancelAnimationFrame(refresh); context.revert(); };
+  }, []);
 }
 
 export default function App() {
   const { data, connection } = useSnapshot();
-  return <><Header /><main><Hero data={data} connection={connection} /><QuoteRibbon data={data} /><Overview data={data} /><PerformanceSection data={data} /><Holdings data={data} /><TradeHistory data={data} /><HowItWorks data={data} /><Research /></main><Footer data={data} /></>;
+  useSectionMotion();
+  return <><Header data={data} /><main><Hero data={data} connection={connection} /><Premise /><LiveStage data={data} /><QuoteStrip data={data} /><Portfolio data={data} /><TankDecision data={data} /><TradeHistory data={data} /><HowItWorks data={data} /><Sources /></main><Footer data={data} /></>;
 }

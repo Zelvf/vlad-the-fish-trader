@@ -26,3 +26,23 @@ Local screenshots: `output/playwright/desktop-top.png` and `output/playwright/mo
 - A persistent HTTPS host, so there is no deployment verification yet.
 
 The UI intentionally labels sample history and scenario prices in the absence of those inputs.
+
+## Frontend redesign verification
+
+- Rebuilt the interface around the user's Lusion About page reference: a full-screen monochrome fish scene, large typography, sparse pill navigation, and broad editorial sections. The fish particle geometry, layout, copy, and visuals are original to Vlad.
+- `npm.cmd run check`, `npm.cmd test` (four tests), and `npm.cmd run build` passed after the redesign.
+- Inspected the 1440px desktop hero, live view, portfolio, chart, and 390px mobile hero, live view, portfolio, tank map, journal, method, and sources in Playwright.
+- The mobile menu opened and closed with Escape. The Sells filter displayed only the sample SPY sale. The chart and range controls remained visible on mobile.
+- Browser console had zero errors and warnings. The 390px viewport had no page-level horizontal overflow.
+- Reduced-motion emulation removed the WebGL canvas and left the temporary aquarium still visible. The still also serves as a fallback when WebGL cannot start.
+
+New local screenshots: `output/playwright/redesign-desktop-hero.png` and `output/playwright/redesign-mobile-hero.png`.
+
+## Scroll motion verification
+
+- The hero pins during a three-beat GSAP ScrollTrigger sequence. At 1440px and 390px, the VLAD title clears, the fish-decision and ledger headlines enter in order, and the procedural fish changes scale and position. The progress rail advances with scroll.
+- Chapter titles reveal by line, the live image wipes into view, and the portfolio path draws when scrolled into view.
+- Direct `#portfolio` navigation landed with the heading visible at the intended 72px header offset on desktop and mobile. The mobile page had no horizontal overflow; the browser console reported no errors or warnings.
+- Reduced-motion emulation removed the WebGL canvas and pin spacer, kept the temporary still visible, and left the next section directly below the hero.
+
+Motion captures: `output/playwright/motion-desktop-start-final.png`, `output/playwright/motion-desktop-phase-one-final.png`, `output/playwright/motion-desktop-phase-three-final.png`, `output/playwright/motion-mobile-start.png`, `output/playwright/motion-mobile-phase-one-final.png`, and `output/playwright/motion-mobile-phase-two.png`. A short browser recording is at `output/playwright/vlad-scroll-sequence-final.webm`. These files are local and ignored by Git.
