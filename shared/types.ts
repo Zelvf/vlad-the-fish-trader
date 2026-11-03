@@ -1,22 +1,21 @@
 import type { SymbolCode, TradeSide, ZoneCode } from './catalog.js';
 
 export type AppMode = 'demo' | 'live';
-export type QuoteSource = 'scenario' | 'twelvedata';
+export type QuoteSource = 'scenario' | 'coingecko';
 
 export interface Quote {
   symbol: SymbolCode;
   price: number;
-  previousClose: number;
+  price24hAgo: number | null;
   observedAt: string;
   source: QuoteSource;
-  marketOpen: boolean;
 }
 
 export interface Trade {
   id: number;
   symbol: SymbolCode;
   side: TradeSide;
-  shares: number;
+  units: number;
   price: number;
   notional: number;
   executedAt: string;
@@ -32,11 +31,11 @@ export interface Activity {
 
 export interface Position {
   symbol: SymbolCode;
-  shares: number;
+  units: number;
   marketValue: number;
   averageCost: number;
   unrealizedPnl: number;
-  dayChangePercent: number;
+  change24hPercent: number | null;
 }
 
 export interface EquityPoint {

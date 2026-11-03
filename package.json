@@ -9,6 +9,7 @@
     "dev:server": "tsx watch server/index.ts",
     "dev:web": "vite --host 127.0.0.1",
     "build": "tsc -p tsconfig.server.json && vite build",
+    "build:vercel": "tsc -p tsconfig.server.json && vite build --mode vercel",
     "start": "node build/server/index.js",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
     "test": "node --import tsx --test server/*.test.ts"

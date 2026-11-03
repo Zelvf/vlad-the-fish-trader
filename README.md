@@ -1,8 +1,12 @@
 # Vlad the Fish Trader
 
-A full-stack, **paper-only** fish trading experiment. Vlad's location selects one of six stock references, then a separate BUY or SELL zone decides the order. A persistent SQLite ledger records virtual shares, cash, portfolio value, skipped signals and a SPY benchmark. The public site pairs an immersive fish-shaped particle scene with a configurable YouTube Live player, real-time state through server-sent events, a tank map, chart, holdings, history and methodology.
+A full-stack, **paper-only** fish trading experiment. Vlad's location selects DOGE, SHIB, PEPE, BONK, WIF or TRUMP, then a separate BUY or SELL zone decides the order. These are meme coins shown as tradable on [Robinhood's U.S. availability page](https://robinhood.com/us/en/support/articles/coin-availability/) as checked on 3 November 2026; availability can vary by region. A persistent SQLite ledger records virtual coin units, cash, portfolio value, skipped signals and a DOGE buy-and-hold benchmark. The public site pairs a fish-shaped particle scene with a configurable YouTube Live player, server-sent updates, a tank map, chart, holdings, history and methodology.
 
-The default mode is a **labelled sample preview**. Its prices, past trades and chart points are scenario data, not market data or observed fish behavior. No broker, wallet or blockchain transaction code is present.
+The default mode is a **labelled sample preview**. Its prices, past trades and chart points are scenario data, not market data or observed fish behavior. The project is independent of Robinhood. No Robinhood account, broker, wallet or blockchain transaction code is present.
+
+## Public preview
+
+The Vercel deployment serves the animated site and a stateless sample snapshot. It uses the same sample portfolio calculations as the local demo, but regenerates them on each request; it does not accept observations or preserve trades. It polls its sample endpoint every minute instead of opening a long-lived event stream. Set `YOUTUBE_LIVE_VIDEO_ID` in the Vercel project when Vlad's stream is ready to enable the YouTube player. The camera-driven paper ledger requires the persistent Node deployment described below.
 
 ## Run locally on Windows
 
@@ -31,7 +35,7 @@ npm.cmd run build
 npm.cmd start
 ```
 
-`npm.cmd start` serves the built site and API on port 8787. The database is stored at `./data/vlad.sqlite` by default and is deliberately excluded from Git.
+`npm.cmd start` serves the built site and API on port 8787. The new meme-coin ledger defaults to `./data/vlad-memecoins.sqlite` and is excluded from Git. The earlier stock ledger is left intact; the app rejects a database from a different asset universe or mode.
 
 ## Connect the real fish
 
@@ -48,11 +52,11 @@ See [camera calibration](docs/CAMERA.md) for the exact tracking contract and lim
 | Mode | Portfolio data | Prices | Fish observations |
 | --- | --- | --- | --- |
 | `APP_MODE=demo` (default) | One-time sample trades plus any camera trades | Explicit scenario prices | Optional; no fake live camera status |
-| `APP_MODE=live` | Clean paper ledger | Optional Twelve Data `/quote` adapter | Required for new trades |
+| `APP_MODE=live` | Clean paper ledger | Optional CoinGecko USD reference prices | Required for new trades |
 
-For reference quotes in live mode, set `MARKET_DATA_PROVIDER=twelvedata` and `TWELVE_DATA_API_KEY`. The backend fetches quotes server-side and refuses a paper fill if the quote is absent, stale, or the provider marks the market closed. Check your provider plan's public display and redistribution terms before publishing its prices. Use **a separate `DATABASE_PATH` for live mode**; the server refuses to relabel a demo ledger as live.
+For reference prices in live mode, set `MARKET_DATA_PROVIDER=coingecko`. Set `COINGECKO_DEMO_API_KEY` for a stable Demo allocation; keyless access is possible but subject to shared IP limits. The backend requests all six coins in one batch every five minutes by default, keeps the key server-side, and skips a paper fill when a price is absent or stale. The UI attributes CoinGecko and labels these as **reference prices, not Robinhood execution quotes**. Review the provider's [plan and attribution terms](https://www.coingecko.com/en/api/pricing) before public release. Use **a separate `DATABASE_PATH` for live mode**.
 
-Pons v2 can use an approved tokenized stock as a *pairing asset* for a launched token. This project currently uses stock/ETF symbols only as paper-trading references. It does not read Pons launch state or trade Pons tokens. [Pons v2 documentation](https://docs.ponsfamily.com/v2) explains the distinction.
+Crypto trades around the clock on Robinhood subject to maintenance, but this simulator does not receive Robinhood availability or order-book state. A CoinGecko reference price cannot predict a Robinhood fill. The six-coin catalog is a documented listing snapshot, not an assertion that a specific viewer can trade every coin in their jurisdiction.
 
 ## API
 
@@ -71,6 +75,7 @@ Observations use normalized coordinates (`0` to `1`) and `Authorization: Bearer 
 | --- | --- |
 | `src/` | React site, GSAP intro and scroll motion, procedural Three.js fish field |
 | `server/` | Express API, deterministic signal state machine, quote adapter, SQLite ledger |
+| `api/` | Stateless, read-only sample endpoints for the Vercel preview |
 | `shared/` | Symbols, zones and API types used by both halves |
 | `tracker/` | Optional Python/OpenCV camera bridge |
 | `public/vlad-placeholder.png` | Generated temporary visual; provenance and prompt in `ASSETS.md` |
@@ -78,4 +83,4 @@ Observations use normalized coordinates (`0` to `1`) and `Authorization: Bearer 
 
 ## Production boundary
 
-This is runnable locally and can be deployed to a **persistent Node 24 host**. A single long-lived process and persistent volume are needed for SQLite and SSE. Configure the live video ID, ingest secret, quote provider and camera bridge before presenting a real session. The site always identifies trades as simulated. See [deployment notes](docs/DEPLOYMENT.md).
+The real camera-driven service can be deployed to a **persistent Node 24 host**. A single long-lived process and persistent volume are needed for SQLite and SSE. Configure the live video ID, ingest secret, quote provider and camera bridge before presenting a real session. The Vercel release is a read-only sample preview. The site always identifies trades as simulated. See [deployment notes](docs/DEPLOYMENT.md).

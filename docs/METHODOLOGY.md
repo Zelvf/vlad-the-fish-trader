@@ -2,7 +2,9 @@
 
 ## What is simulated
 
-All dollars, shares, orders, P&L and benchmark results on this site are virtual. `APP_MODE=demo` also uses **scenario prices and sample historical trades** to make the UI reviewable before any hardware is connected. In `APP_MODE=live`, incoming camera observations can create new paper trades against a server-fetched reference quote. Neither mode sends an order to a broker, exchange, wallet or Pons contract.
+All dollars, coin units, orders, P&L and benchmark results on this site are virtual. `APP_MODE=demo` uses **scenario prices and sample historical trades** to make the UI reviewable before hardware is connected. In `APP_MODE=live`, camera observations can create paper trades against a server-fetched CoinGecko USD reference price. Neither mode sends an order to Robinhood, another broker, an exchange, or a wallet. The project is independent of Robinhood.
+
+The six choices are DOGE, SHIB, PEPE, BONK, WIF and TRUMP. They appeared as tradable on [Robinhood's U.S. crypto availability page](https://robinhood.com/us/en/support/articles/coin-availability/) when checked on 3 November 2026. Availability changes and can depend on location. The catalog is a selection rule for the simulation, not a live listing feed.
 
 ## Tank layout
 
@@ -10,32 +12,33 @@ All dollars, shares, orders, P&L and benchmark results on this site are virtual.
 
 | Tank region | Meaning |
 | --- | --- |
-| Top 36%, left/middle/right third | SPY / NVDA / TSLA |
-| Next 36%, left/middle/right third | AAPL / GOOGL / MSFT |
+| Top 36%, left/middle/right third | DOGE / SHIB / PEPE |
+| Next 36%, left/middle/right third | BONK / WIF / TRUMP |
 | Bottom 28%, left half | BUY |
 | Bottom 28%, right half | SELL |
 
-The fish must be detected with confidence `>= 0.55`. A continuous stay of `DWELL_MS` (default 5 seconds) in one stock zone arms that symbol. A continuous stay of the same duration in BUY or SELL produces a decision. The selected symbol expires after two minutes. An action then enters `TRADE_COOLDOWN_MS` (default 30 seconds), and a single uninterrupted zone stay cannot fire twice. Leaving a zone resets its dwell timer.
+The fish must be detected with confidence `>= 0.55`. A continuous stay of `DWELL_MS` (default 5 seconds) in one coin zone arms that symbol. A continuous stay of the same duration in BUY or SELL produces a decision. The selected symbol expires after two minutes. An action then enters `TRADE_COOLDOWN_MS` (default 30 seconds), and a single uninterrupted zone stay cannot fire twice. Leaving a zone resets its dwell timer.
 
 ## Fill conditions
 
-A paper decision is **skipped and logged** if no quote exists, the quote is older than `MAX_QUOTE_AGE_MS` (default 120 seconds), a live provider reports the market closed, virtual cash is below $1 for a buy, or the portfolio has less than $1 worth of shares for a sell. The order target is `ORDER_NOTIONAL` (default $500). Buys use the lesser of that target and available virtual cash. Sells use the lesser of that target and the current value of held shares. Short selling and margin are absent.
+A paper decision is **skipped and logged** if no price exists, the provider timestamp is older than `MAX_QUOTE_AGE_MS` (default 10 minutes), virtual cash is below $1 for a buy, or the portfolio has less than $1 worth of the selected coin for a sell. The order target is `ORDER_NOTIONAL` (default $500). Buys use the lesser of that target and available virtual cash. Sells use the lesser of that target and the current value of held units. Short selling and margin are absent. The simulator does not query Robinhood maintenance status; its fills are never actual Robinhood orders.
 
-Fractional shares are rounded **down** to six decimal places; cash and notional are rounded to cents. The trade ledger stores the side, symbol, filled shares, quote price, notional, timestamp and whether the source was a sample fixture or a camera signal. It does **not** include fees, slippage, spreads, dividends, splits, tax, borrow costs or order-book liquidity. This is why paper returns should never be treated as executable returns.
+Coin units are rounded **down** to six decimal places; cash and notional are rounded to cents. Tiny coin prices retain provider precision, so SHIB, PEPE and BONK do not display or fill at `$0.00`. The trade ledger stores the side, symbol, filled units, reference price, notional, timestamp and whether the source was a sample fixture or a camera signal. It does **not** include Robinhood spreads or fees, slippage, taxes, network costs or order-book liquidity. Paper returns cannot be treated as executable returns.
 
 ## Valuation
 
 - **Portfolio value:** virtual cash plus the marked value of each position at the latest available quote.
 - **Total P&L:** portfolio value minus initial virtual cash.
-- **Today’s P&L:** current value minus the first stored equity point of the current `America/New_York` calendar day. If no point exists for that day, it begins at zero until the first point is recorded.
-- **SPY benchmark:** initial virtual cash invested in SPY at the first stored SPY quote, then marked at the current stored SPY quote. This is a simple buy-and-hold comparison, not a total-return index and not dividend adjusted.
-- **Unrealized P&L:** current market value minus shares times weighted average acquisition cost. Realized P&L is reflected in cash and total portfolio value but is not displayed as a separate tax-lot report.
+- **Today's P&L:** current value minus the first stored equity point of the current UTC calendar day. If no point exists for that day, it begins at zero until the first point is recorded.
+- **DOGE benchmark:** initial virtual cash invested in DOGE at the first stored DOGE reference price, then marked at the current DOGE reference price. This is a simple paper buy-and-hold comparison.
+- **Unrealized P&L:** current market value minus coin units times weighted average acquisition cost. Realized P&L is reflected in cash and total portfolio value but is not displayed as a separate tax-lot report.
+- **24-hour move:** the CoinGecko change percentage is used to derive a comparison price 24 hours earlier. If that percentage is unavailable, the move is displayed as unavailable rather than zero.
 
-Market quotes are fetched by an optional Twelve Data adapter. Its `close`, `previous_close`, last quote timestamp and `is_market_open` fields are used. If the provider is unavailable, prior prices remain visible with their old timestamp, but they cannot fill new paper orders once stale. Display rights for public quotes depend on the provider's plan.
+The optional [CoinGecko `/simple/price` endpoint](https://docs.coingecko.com/reference/simple-price) returns USD prices, 24-hour changes and provider timestamps for all six mapped coin IDs in one request. The default five-minute polling interval fits under the currently published 10,000-call monthly Demo cap for one continuously running instance, with some room for restarts. If the provider is unavailable, prior prices remain visible with their old timestamp, but they cannot fill new paper orders once stale. The site attributes CoinGecko where these prices appear; review the provider's display rights and plan before public release.
 
-## Pons v2 relationship
+## Robinhood relationship
 
-[Pons v2](https://docs.ponsfamily.com/v2) supports launches paired against approved assets, potentially including tokenized stocks. A tokenized stock used as a launch's quote asset is distinct from a traditional stock share. Vlad currently paper trades ticker references only. The site does not select Pons launch contracts or claim to hold tokenized equities. A future Pons-specific simulation would need a catalog of approved pair tokens, their contract addresses, units, USD valuation sources and precise curve/pool pricing rules.
+Robinhood supplies the listing reference only. The app does not log in to Robinhood, call a Robinhood trading API, read its order book or make Robinhood trades. CoinGecko aggregates independent market prices, so the virtual fill can differ from any venue's executable price. Crypto may trade on Robinhood around the clock subject to maintenance and local availability; those platform conditions are outside the simulator's feed.
 
 ## Failure visibility
 

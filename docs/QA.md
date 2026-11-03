@@ -2,41 +2,30 @@
 
 Verified locally on Windows with Node.js 24.15.0 and Python 3.10 on 3 November 2026.
 
-## Passed
+## Current meme-coin implementation
 
-- `npm.cmd run check` — frontend and server TypeScript checks passed.
-- `npm.cmd test` — four signal/ledger tests passed, covering dwell, action, cooldown, low confidence, camera gap, sell limits and restart persistence.
-- `npm.cmd run build` — production server and Vite client built. The decorative Three.js field is a separate chunk from the main application.
-- `npm.cmd run dev` — Vite at `127.0.0.1:5173` and Express at `127.0.0.1:8787` started together; `/api/health` and the methodology document proxied correctly.
-- Production `GET /api/health`, `/api/snapshot` and `/docs/METHODOLOGY.md` returned expected data.
-- Authenticated observation sequence on an isolated demo ledger selected NVDA, then bought $500 of NVDA after two shortened dwell intervals. The new trade and camera source appeared in the browser via SSE.
-- Missing bearer token returned HTTP 401; a null coordinate returned HTTP 400.
-- An isolated clean live ledger without a quote provider held $10,000 and logged `BUY NVDA skipped: no price is available` after a valid signal. It created no trade.
-- The Python tracker compiled, and its default HSV detector found the generated temporary fish at normalized position approximately `(0.701, 0.411)` with confidence `0.97`. This verifies the processing path, not real-tank calibration.
-- Playwright inspection at 1440px and 390px showed the paper/preview labels, functioning trade filter and mobile menu, no browser console errors, and no page-level horizontal overflow after the chart sizing fix.
-- With reduced motion emulation, the decorative WebGL canvas was absent while the page remained readable.
+- `npm.cmd run check` passed for frontend and server TypeScript.
+- `npm.cmd run build` and `npm.cmd run build:vercel` passed. The Vercel-mode frontend uses one-minute snapshot polling; its read-only function returned six sample quotes and four sample trades when called locally.
+- `npm.cmd test` passed five tests: dwell/action/cooldown, confidence and camera gaps, tiny-price coin ledger fills and restart persistence, asset-universe rejection, and one-batch CoinGecko mapping with full precision and 24-hour changes.
+- A direct keyless request to CoinGecko's documented endpoint returned HTTP 200, all six configured IDs, positive USD prices and provider timestamps. This checks the ID mapping; it is not a claim of stable keyless service.
+- An isolated `APP_MODE=live` server on port 8890 populated six CoinGecko quotes. Two shortened camera dwell intervals selected DOGE and recorded one $500 virtual DOGE buy, leaving $9,500 virtual cash. The trade source was `camera`; no real order was sent.
+- The default demo API returned DOGE, SHIB, PEPE, BONK, WIF and TRUMP with `scenario` source, four sample trades and a DOGE benchmark. Small prices remained visible at full useful precision.
+- Browser inspection at 1440px and 390px showed the updated hero, portfolio, tank zones and journal, no console errors or warnings, and no page-level horizontal overflow.
 
-Local screenshots: `output/playwright/desktop-top.png` and `output/playwright/mobile-top.png` (the `output/` directory is ignored by Git).
+Current screenshots: `output/playwright/memecoin-desktop-hero.png`, `output/playwright/memecoin-desktop-portfolio.png`, `output/playwright/memecoin-desktop-tank.png`, `output/playwright/memecoin-mobile-hero.png`, `output/playwright/memecoin-mobile-portfolio.png` and `output/playwright/memecoin-mobile-journal.png`. The `output/` directory is ignored by Git.
 
 ## Pending real inputs
 
 - Vlad's actual YouTube Live video ID, so live playback could not be verified.
 - Vlad's actual camera/tank footage, so tracking thresholds and ROI remain a starting point.
-- A Twelve Data key and a plan permitting the intended public quote display, so live quote polling was not exercised against the provider.
-- A persistent HTTPS host, so there is no deployment verification yet.
+- A CoinGecko Demo key and a plan permitting the intended public price display. Keyless live polling was exercised locally, but production reliability and attribution terms still need review.
+- A persistent HTTPS host for the camera-driven API. The Vercel deployment is a stateless sample preview.
 
 The UI intentionally labels sample history and scenario prices in the absence of those inputs.
 
-## Frontend redesign verification
+## Motion and accessibility
 
-- Rebuilt the interface around the user's Lusion About page reference: a full-screen monochrome fish scene, large typography, sparse pill navigation, and broad editorial sections. The fish particle geometry, layout, copy, and visuals are original to Vlad.
-- `npm.cmd run check`, `npm.cmd test` (four tests), and `npm.cmd run build` passed after the redesign.
-- Inspected the 1440px desktop hero, live view, portfolio, chart, and 390px mobile hero, live view, portfolio, tank map, journal, method, and sources in Playwright.
-- The mobile menu opened and closed with Escape. The Sells filter displayed only the sample SPY sale. The chart and range controls remained visible on mobile.
-- Browser console had zero errors and warnings. The 390px viewport had no page-level horizontal overflow.
-- Reduced-motion emulation removed the WebGL canvas and left the temporary aquarium still visible. The still also serves as a fallback when WebGL cannot start.
-
-New local screenshots: `output/playwright/redesign-desktop-hero.png` and `output/playwright/redesign-mobile-hero.png`.
+The Lusion-inspired interface uses original fish geometry, copy, layout and visuals. The three-beat pinned hero, section reveals, chart draw and menu motion remain in the meme-coin version. Earlier browser checks confirmed that reduced-motion emulation removes WebGL and pinning while keeping the page readable. The new browser pass confirmed direct section navigation and the same no-overflow layout on mobile.
 
 ## Scroll motion verification
 

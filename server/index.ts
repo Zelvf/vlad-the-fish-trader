@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { config } from './config.js';
 import { Store } from './store.js';
 import { SignalEngine, type Observation } from './signal-engine.js';
-import { refreshTwelveData } from './market-data.js';
+import { refreshCoinGecko } from './market-data.js';
 
 const app = express();
 const store = new Store(config.databasePath, config.mode, config.startingCash);
@@ -36,7 +36,7 @@ function tokenMatches(value: string | undefined): boolean {
 
 app.get('/api/health', (_request, response) => {
   response.json({ ok: true, mode: config.mode, timestamp: new Date().toISOString(),
-    cameraConnected: signal.state().cameraConnected, quoteCount: store.quotes().length,
+    cameraConnected: signal.state().cameraConnected, quoteCount: store.quotes().length, quoteProvider: config.marketProvider,
     streamConfigured: Boolean(config.youtubeVideoId) });
 });
 
@@ -90,12 +90,11 @@ app.post('/api/ingest/observation', (request, response) => {
     let reason: string | null = null;
     if (!quote) reason = 'no price is available';
     else if (quoteAge > config.maxQuoteAgeMs || quoteAge < -5_000) reason = 'the price is stale';
-    else if (config.mode === 'live' && !quote.marketOpen) reason = 'the market is closed';
     if (reason) store.addActivity('skip', `${side} ${symbol} skipped: ${reason}.`);
     else {
       const trade = store.recordTrade(symbol, side, quote!.price, config.orderNotional, 'camera');
       if (trade) store.addActivity('trade', `Vlad ${side === 'BUY' ? 'bought' : 'sold'} ${symbol} for $${trade.notional.toFixed(2)} in the paper portfolio.`);
-      else store.addActivity('skip', `${side} ${symbol} skipped: insufficient ${side === 'BUY' ? 'virtual cash' : 'shares'}.`);
+      else store.addActivity('skip', `${side} ${symbol} skipped: insufficient ${side === 'BUY' ? 'virtual cash' : 'coin units'}.`);
     }
   }
   broadcast();
@@ -122,8 +121,8 @@ async function refreshQuotes(): Promise<void> {
   quoteRefreshRunning = true;
   try {
     if (config.mode === 'demo') store.updateScenarioQuotes();
-    else if (config.marketProvider === 'twelvedata' && config.twelveDataKey) {
-      const result = await refreshTwelveData(store, config.twelveDataKey);
+    else if (config.marketProvider === 'coingecko') {
+      const result = await refreshCoinGecko(store, config.coinGeckoKey);
       if (result.errors.length) console.warn(`Quote refresh: ${result.updated} updated; ${result.errors.join('; ')}`);
     }
     broadcast();
@@ -131,7 +130,7 @@ async function refreshQuotes(): Promise<void> {
   finally { quoteRefreshRunning = false; }
 }
 void refreshQuotes();
-const quoteTimer = setInterval(() => { void refreshQuotes(); }, config.quotePollMs);
+const quoteTimer = setInterval(() => { void refreshQuotes(); }, config.mode === 'demo' ? 60_000 : config.quotePollMs);
 
 function shutdown(): void {
   clearInterval(publishTimer);

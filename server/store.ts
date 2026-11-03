@@ -1,22 +1,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { SYMBOLS, isSymbol, type SymbolCode, type TradeSide } from '../shared/catalog.js';
+import { ASSET_UNIVERSE, BENCHMARK_SYMBOL, SYMBOLS, isSymbol, type SymbolCode, type TradeSide } from '../shared/catalog.js';
 import type { Activity, AppMode, EquityPoint, Position, Quote, Snapshot, Trade } from '../shared/types.js';
 import type { SignalEngine } from './signal-engine.js';
 
 const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 const demoQuotes = [
-  { symbol: 'SPY', price: 586.34, previousClose: 583.86 },
-  { symbol: 'NVDA', price: 131.40, previousClose: 129.72 },
-  { symbol: 'TSLA', price: 267.52, previousClose: 271.08 },
-  { symbol: 'AAPL', price: 222.80, previousClose: 221.09 },
-  { symbol: 'GOOGL', price: 173.46, previousClose: 172.62 },
-  { symbol: 'MSFT', price: 435.31, previousClose: 433.42 },
+  { symbol: 'DOGE', price: 0.18, price24hAgo: 0.176 },
+  { symbol: 'SHIB', price: 0.0000124, price24hAgo: 0.0000121 },
+  { symbol: 'PEPE', price: 0.0000052, price24hAgo: 0.0000051 },
+  { symbol: 'BONK', price: 0.0000156, price24hAgo: 0.0000159 },
+  { symbol: 'WIF', price: 1.34, price24hAgo: 1.31 },
+  { symbol: 'TRUMP', price: 9.2, price24hAgo: 9.45 },
 ] as const;
 
-function newYorkDay(value: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
+function utcDay(value: string): string {
+  return new Date(value).toISOString().slice(0, 10);
 }
 
 export class Store {
@@ -29,15 +29,15 @@ export class Store {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS quotes (
-        symbol TEXT PRIMARY KEY, price REAL NOT NULL, previous_close REAL NOT NULL,
-        observed_at TEXT NOT NULL, source TEXT NOT NULL, market_open INTEGER NOT NULL
+        symbol TEXT PRIMARY KEY, price REAL NOT NULL, price_24h_ago REAL,
+        observed_at TEXT NOT NULL, source TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS positions (
-        symbol TEXT PRIMARY KEY, shares REAL NOT NULL, average_cost REAL NOT NULL
+        symbol TEXT PRIMARY KEY, units REAL NOT NULL, average_cost REAL NOT NULL
       );
       CREATE TABLE IF NOT EXISTS trades (
         id INTEGER PRIMARY KEY AUTOINCREMENT, symbol TEXT NOT NULL, side TEXT NOT NULL,
-        shares REAL NOT NULL, price REAL NOT NULL, notional REAL NOT NULL,
+        units REAL NOT NULL, price REAL NOT NULL, notional REAL NOT NULL,
         executed_at TEXT NOT NULL, source TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS activity (
@@ -56,13 +56,18 @@ export class Store {
       this.db.close();
       throw new Error(`Database is a ${existingMode} ledger; use a separate DATABASE_PATH for ${mode} mode.`);
     }
+    if (existingMode && this.setting('asset_universe') !== ASSET_UNIVERSE) {
+      this.db.close();
+      throw new Error(`Database belongs to an older asset universe; use a fresh DATABASE_PATH for ${ASSET_UNIVERSE}.`);
+    }
     if (!existingMode) {
       this.setSetting('mode', mode);
+      this.setSetting('asset_universe', ASSET_UNIVERSE);
       this.setSetting('initial_cash', String(initialCash));
       this.setSetting('cash', String(initialCash));
       this.setSetting('created_at', new Date().toISOString());
       if (mode === 'demo') this.seedDemo();
-      else this.addActivity('system', 'Paper portfolio created. Waiting for market quotes and Vlad observations.');
+      else this.addActivity('system', 'Meme-coin paper portfolio created. Waiting for reference prices and Vlad observations.');
     }
   }
 
@@ -79,12 +84,12 @@ export class Store {
 
   private seedDemo(): void {
     const now = Date.now();
-    demoQuotes.forEach((quote) => this.upsertQuote({ ...quote, observedAt: new Date(now).toISOString(), source: 'scenario', marketOpen: true }));
+    demoQuotes.forEach((quote) => this.upsertQuote({ ...quote, observedAt: new Date(now).toISOString(), source: 'scenario' }));
     const fixtures: Array<[SymbolCode, TradeSide, number, number, number]> = [
-      ['SPY', 'BUY', 500, 572.10, 48],
-      ['NVDA', 'BUY', 500, 127.20, 33],
-      ['AAPL', 'BUY', 500, 215.40, 18],
-      ['SPY', 'SELL', 250, 582.90, 7],
+      ['DOGE', 'BUY', 500, 0.171, 48],
+      ['PEPE', 'BUY', 500, 0.0000048, 33],
+      ['WIF', 'BUY', 500, 1.26, 18],
+      ['DOGE', 'SELL', 250, 0.181, 7],
     ];
     for (const [symbol, side, amount, price, hoursAgo] of fixtures) {
       const at = new Date(now - hoursAgo * 3_600_000).toISOString();
@@ -110,12 +115,12 @@ export class Store {
 
   upsertQuote(quote: Quote): void {
     this.db.prepare(`
-      INSERT INTO quotes(symbol,price,previous_close,observed_at,source,market_open)
-      VALUES (?,?,?,?,?,?) ON CONFLICT(symbol) DO UPDATE SET
-        price=excluded.price, previous_close=excluded.previous_close,
-        observed_at=excluded.observed_at, source=excluded.source, market_open=excluded.market_open
-    `).run(quote.symbol, quote.price, quote.previousClose, quote.observedAt, quote.source, quote.marketOpen ? 1 : 0);
-    if (quote.symbol === 'SPY' && !this.setting('benchmark_price')) this.setSetting('benchmark_price', String(quote.price));
+      INSERT INTO quotes(symbol,price,price_24h_ago,observed_at,source)
+      VALUES (?,?,?,?,?) ON CONFLICT(symbol) DO UPDATE SET
+        price=excluded.price, price_24h_ago=excluded.price_24h_ago,
+        observed_at=excluded.observed_at, source=excluded.source
+    `).run(quote.symbol, quote.price, quote.price24hAgo, quote.observedAt, quote.source);
+    if (quote.symbol === BENCHMARK_SYMBOL && !this.setting('benchmark_price')) this.setSetting('benchmark_price', String(quote.price));
   }
 
   updateScenarioQuotes(now = Date.now()): void {
@@ -123,7 +128,7 @@ export class Store {
     const elapsed = (now - new Date(this.setting('created_at') || now).getTime()) / 60_000;
     demoQuotes.forEach((quote, index) => {
       const motion = Math.sin(elapsed / 11 + index * 1.37) * 0.004 + Math.sin(elapsed / 27 + index * 0.81) * 0.002;
-      this.upsertQuote({ ...quote, price: round2(quote.price * (1 + motion)), observedAt: new Date(now).toISOString(), source: 'scenario', marketOpen: true });
+      this.upsertQuote({ ...quote, price: Number((quote.price * (1 + motion)).toPrecision(12)), observedAt: new Date(now).toISOString(), source: 'scenario' });
     });
     this.recordEquity(new Date(now).toISOString());
   }
@@ -133,9 +138,8 @@ export class Store {
     return SYMBOLS.flatMap(({ symbol }) => {
       const row = rows.find((item) => item.symbol === symbol);
       return row ? [{
-        symbol, price: Number(row.price), previousClose: Number(row.previous_close),
-        observedAt: String(row.observed_at), source: row.source === 'twelvedata' ? 'twelvedata' as const : 'scenario' as const,
-        marketOpen: Boolean(row.market_open),
+        symbol, price: Number(row.price), price24hAgo: row.price_24h_ago === null ? null : Number(row.price_24h_ago),
+        observedAt: String(row.observed_at), source: row.source === 'coingecko' ? 'coingecko' as const : 'scenario' as const,
       }] : [];
     });
   }
@@ -144,18 +148,18 @@ export class Store {
   cash(): number { return Number(this.setting('cash') || this.initialCash); }
 
   positions(): Position[] {
-    const rows = this.db.prepare('SELECT * FROM positions WHERE shares > 0.000001').all() as Array<Record<string, unknown>>;
+    const rows = this.db.prepare('SELECT * FROM positions WHERE units > 0.000001').all() as Array<Record<string, unknown>>;
     const quotes = this.quotes();
     return rows.flatMap((row) => {
       const symbol = String(row.symbol);
       if (!isSymbol(symbol)) return [];
       const quote = quotes.find((item) => item.symbol === symbol);
-      const shares = Number(row.shares);
+      const units = Number(row.units);
       const averageCost = Number(row.average_cost);
       const price = quote?.price ?? averageCost;
-      return [{ symbol, shares, averageCost, marketValue: round2(shares * price),
-        unrealizedPnl: round2(shares * (price - averageCost)),
-        dayChangePercent: quote?.previousClose ? (price / quote.previousClose - 1) * 100 : 0 }];
+      return [{ symbol, units, averageCost, marketValue: round2(units * price),
+        unrealizedPnl: round2(units * (price - averageCost)),
+        change24hPercent: quote?.price24hAgo ? (price / quote.price24hAgo - 1) * 100 : null }];
     });
   }
 
@@ -163,34 +167,36 @@ export class Store {
 
   benchmarkValue(): number {
     const base = Number(this.setting('benchmark_price') || 0);
-    const price = this.quote('SPY')?.price;
+    const price = this.quote(BENCHMARK_SYMBOL)?.price;
     const initialCash = Number(this.setting('initial_cash') || this.initialCash);
     return base > 0 && price ? round2(initialCash * price / base) : initialCash;
   }
 
   recordTrade(symbol: SymbolCode, side: TradeSide, price: number, requestedNotional: number, source: Trade['source'], at = new Date().toISOString()): Trade | null {
     if (!(price > 0) || !(requestedNotional > 0)) return null;
-    const row = this.db.prepare('SELECT shares, average_cost FROM positions WHERE symbol = ?').get(symbol) as { shares: number; average_cost: number } | undefined;
-    const held = Number(row?.shares || 0);
+    const row = this.db.prepare('SELECT units, average_cost FROM positions WHERE symbol = ?').get(symbol) as { units: number; average_cost: number } | undefined;
+    const held = Number(row?.units || 0);
     const cash = this.cash();
     const allowed = side === 'BUY' ? Math.min(requestedNotional, cash) : Math.min(requestedNotional, held * price);
     if (allowed < 1) return null;
-    const shares = Math.min(side === 'SELL' ? held : Infinity, Math.floor((allowed / price) * 1_000_000) / 1_000_000);
-    if (!(shares > 0)) return null;
-    const notional = round2(shares * price);
+    const units = side === 'SELL' && requestedNotional >= held * price
+      ? held
+      : Math.min(side === 'SELL' ? held : Infinity, Math.floor((allowed / price) * 1_000_000) / 1_000_000);
+    if (!(units > 0)) return null;
+    const notional = round2(units * price);
     const nextCash = round2(cash + (side === 'BUY' ? -notional : notional));
-    const nextShares = side === 'BUY' ? held + shares : Math.max(0, held - shares);
-    const averageCost = side === 'BUY' ? (held * Number(row?.average_cost || 0) + notional) / nextShares : Number(row?.average_cost || 0);
+    const nextUnits = side === 'BUY' ? held + units : Math.max(0, held - units);
+    const averageCost = side === 'BUY' ? (held * Number(row?.average_cost || 0) + notional) / nextUnits : Number(row?.average_cost || 0);
     this.db.exec('BEGIN IMMEDIATE');
     try {
       this.setSetting('cash', String(nextCash));
-      this.db.prepare('INSERT INTO positions(symbol,shares,average_cost) VALUES (?,?,?) ON CONFLICT(symbol) DO UPDATE SET shares=excluded.shares, average_cost=excluded.average_cost')
-        .run(symbol, nextShares, averageCost);
-      const result = this.db.prepare('INSERT INTO trades(symbol,side,shares,price,notional,executed_at,source) VALUES (?,?,?,?,?,?,?)')
-        .run(symbol, side, shares, price, notional, at, source);
+      this.db.prepare('INSERT INTO positions(symbol,units,average_cost) VALUES (?,?,?) ON CONFLICT(symbol) DO UPDATE SET units=excluded.units, average_cost=excluded.average_cost')
+        .run(symbol, nextUnits, averageCost);
+      const result = this.db.prepare('INSERT INTO trades(symbol,side,units,price,notional,executed_at,source) VALUES (?,?,?,?,?,?,?)')
+        .run(symbol, side, units, price, notional, at, source);
       this.db.exec('COMMIT');
       this.recordEquity(at);
-      return { id: Number(result.lastInsertRowid), symbol, side, shares, price, notional, executedAt: at, source };
+      return { id: Number(result.lastInsertRowid), symbol, side, units, price, notional, executedAt: at, source };
     } catch (error) {
       this.db.exec('ROLLBACK');
       throw error;
@@ -212,7 +218,7 @@ export class Store {
       const symbol = String(row.symbol);
       if (!isSymbol(symbol)) return [];
       return [{ id: Number(row.id), symbol, side: String(row.side) as TradeSide,
-        shares: Number(row.shares), price: Number(row.price), notional: Number(row.notional),
+        units: Number(row.units), price: Number(row.price), notional: Number(row.notional),
         executedAt: String(row.executed_at), source: String(row.source) as Trade['source'] }];
     });
   }
@@ -234,15 +240,15 @@ export class Store {
     const portfolioValue = round2(this.cash() + positions.reduce((sum, position) => sum + position.marketValue, 0));
     const initialCash = Number(this.setting('initial_cash') || this.initialCash);
     const points = this.equity();
-    const today = newYorkDay(now.toISOString());
-    const firstToday = points.find((point) => newYorkDay(point.at) === today);
+    const today = utcDay(now.toISOString());
+    const firstToday = points.find((point) => utcDay(point.at) === today);
     const baseToday = firstToday?.value ?? portfolioValue;
     const todayPnl = round2(portfolioValue - baseToday);
     const benchmarkValue = this.benchmarkValue();
     const times = quotes.map((quote) => quote.observedAt).sort();
     return {
       mode: this.mode,
-      pricingLabel: this.mode === 'demo' ? 'Scenario prices · sample session' : quotes.length ? 'Reference market quotes · paper orders' : 'Reference prices not connected',
+      pricingLabel: this.mode === 'demo' ? 'Scenario prices · sample session' : quotes.length ? 'CoinGecko reference prices · paper orders' : 'Reference prices not connected',
       generatedAt: now.toISOString(), youtubeVideoId: settings.youtubeVideoId,
       initialCash, cash: this.cash(), portfolioValue,
       totalPnl: round2(portfolioValue - initialCash),

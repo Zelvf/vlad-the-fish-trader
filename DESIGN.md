@@ -28,7 +28,7 @@ DESKTOP                            MOBILE
 |             VLAD.             | |      VLAD.          |
 |   premise / one clear sentence | | premise stacked      |
 | live camera      signal readout | | live camera          |
-| portfolio total / chart / SPY  | | total / chart / SPY  |
+| portfolio total / chart / DOGE | | total / chart / DOGE |
 | tank map         decision text | | map / readout        |
 | holdings / ledger / method     | | stacked records      |
 ```
@@ -43,6 +43,7 @@ Motion is decorative. Reduced-motion users receive a static aquarium visual with
 
 - Mark the default scenario as a preview, with sample prices and trades.
 - Keep broadcast state, camera tracking state, and quote state separate.
-- Keep stock symbols as paper reference assets; do not call them Pons tokens.
+- Name the six Robinhood-listed meme coins clearly, and state that the site is independent of Robinhood.
+- Attribute CoinGecko when its reference prices appear; preserve precision for tiny coin prices.
 - Use ample whitespace and full-width rules instead of repeated dashboard cards.
 - Preserve clear focus, contrast, mobile navigation, and chart/table accessibility.

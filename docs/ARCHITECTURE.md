@@ -9,7 +9,7 @@ flowchart LR
   YT --> UI[Public React site]
   C --> CV[Local OpenCV tracker]
   CV -->|Bearer token + normalized coordinates| API[Express API]
-  Q[Twelve Data quote API, optional] --> API
+  Q[CoinGecko USD prices, optional] --> API
   API --> E[Signal state machine]
   E --> DB[(SQLite paper ledger)]
   DB --> API
@@ -18,12 +18,14 @@ flowchart LR
 
 The broadcast and decision paths are independent. YouTube's iframe offers playback controls, not raw image frames for browser-side fish tracking; the tracker reads a local or RTSP camera source. Viewer video can be delayed relative to signal timestamps. The interface therefore places the tank map beside the video instead of falsely aligning a marker on a delayed embed.
 
+The public Vercel preview follows a smaller, explicitly simulated path: React polls a read-only `/api/snapshot` function, which creates an in-memory demo ledger for that request. It has no camera ingest, quote polling, SSE, or persistent portfolio. The diagram above describes the persistent Node service for a future real fish session.
+
 ## Components
 
 - **React/Vite frontend:** renders the live player, portfolio, benchmark, positions, tank map, history and source links. It never sends a trade request.
 - **Express API:** reads a SQLite database, streams snapshots by SSE, validates and authenticates observations, polls a quote provider and records fills or skips.
 - **SignalEngine:** pure timed state machine. A selection zone must hold for five seconds; BUY/SELL then requires another five seconds. Each uninterrupted dwell fires once, and a cooldown follows an action.
-- **Store:** persists cash, positions, quotes, trades, activity and equity points. Each paper fill updates cash, position and trade inside a SQLite transaction.
+- **Store:** persists cash, coin units, reference prices, trades, activity and equity points. Each paper fill updates cash, position and trade inside a SQLite transaction.
 - **OpenCV bridge:** optional local process detecting an orange fish inside a calibrated crop and posting normalized center coordinates. It is an adjustable baseline, not a trained model for Vlad's actual tank.
 
 ## Data contract
@@ -43,16 +45,16 @@ Coordinates are in the calibrated tank crop, with `(0,0)` at its top-left. The A
 
 ## Persistence and event delivery
 
-The SQLite database uses WAL mode. Tables are `settings`, `quotes`, `positions`, `trades`, `activity` and `equity`. Sample records are inserted only when a new demo database is created. A database's mode is fixed at initialization. SSE sends the full public snapshot on connect and then about once per second. The frontend reconnects automatically if the stream drops.
+The SQLite database uses WAL mode. Tables are `settings`, `quotes`, `positions`, `trades`, `activity` and `equity`. Sample records are inserted only when a new demo database is created. A database's mode and asset universe are fixed at initialization, so an older stock ledger cannot be relabelled as a meme-coin portfolio. SSE sends the full public snapshot on connect and then about once per second. The frontend reconnects automatically if the stream drops.
 
 This is a single-process design. To scale across multiple app instances, move the ledger to a shared database with transactional row controls and broadcast state through a shared event bus. Running separate SQLite copies behind a load balancer would split the portfolio.
 
 ## Trust boundaries
 
 - `INGEST_TOKEN` stays on the server and local tracker; it is never sent to the browser.
-- Only the six catalogued symbols are accepted by the quote adapter and signal engine.
+- Only the six catalogued meme-coin symbols are accepted by the price adapter and signal engine.
 - Quote API credentials remain server-side.
 - Demo prices are marked as scenario values, and sample history is labelled.
-- The app has no broker credentials, wallet signing, Pons contract calls or real-money execution path.
+- Robinhood is a listing reference, not a price or order integration. The app has no broker credentials, wallet signing or real-money execution path.
 
 The tracker endpoint should be exposed through HTTPS behind a reverse proxy in production, with an appropriately long random token. Restrict ingress to the camera machine where practical.

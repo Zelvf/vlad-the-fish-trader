@@ -9,7 +9,7 @@ python -m pip install -r tracker/requirements.txt
 python tracker/track_fish.py --source 0 --preview --dry-run
 ```
 
-The preview draws the exact six selection zones and BUY/SELL strip used by the server. Press `Q` to exit. If the camera is occupied by OBS, select OBS Virtual Camera or an RTSP feed instead of the same physical device index.
+The preview draws the exact six selection zones and BUY/SELL strip used by the server: DOGE, SHIB and PEPE across the top; BONK, WIF and TRUMP across the next row. Press `Q` to exit. If the camera is occupied by OBS, select OBS Virtual Camera or an RTSP feed instead of the same physical device index.
 
 Crop out room edges, filters and tank decorations with `--roi x,y,width,height`, for example `--roi 0.08,0.11,0.83,0.78`. These are fractions of the **full camera frame**. The server sees coordinates normalized to this crop.
 

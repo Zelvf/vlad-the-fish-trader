@@ -1,0 +1,8 @@
+{
+  "framework": "vite",
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist/client",
+  "functions": {
+    "api/*.ts": { "maxDuration": 10 }
+  }
+}

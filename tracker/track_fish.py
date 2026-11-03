@@ -105,8 +105,8 @@ def overlay(frame: np.ndarray, point, roi: tuple[float, float, float, float], st
     cv2.line(output, (x1, split), (x2, split), (95, 145, 130), 1)
     cv2.line(output, (x1 + (x2 - x1) // 2, split), (x1 + (x2 - x1) // 2, y2), (95, 145, 130), 1)
     cv2.line(output, (x1, y1 + int((y2 - y1) * .36)), (x2, y1 + int((y2 - y1) * .36)), (95, 145, 130), 1)
-    labels = [("SPY", .04, .10), ("NVDA", .37, .10), ("TSLA", .70, .10),
-              ("AAPL", .04, .46), ("GOOGL", .37, .46), ("MSFT", .70, .46),
+    labels = [("DOGE", .04, .10), ("SHIB", .37, .10), ("PEPE", .70, .10),
+              ("BONK", .04, .46), ("WIF", .37, .46), ("TRUMP", .70, .46),
               ("BUY", .14, .87), ("SELL", .64, .87)]
     for label, x, y in labels:
         cv2.putText(output, label, (x1 + int((x2 - x1) * x), y1 + int((y2 - y1) * y)),
