@@ -14,7 +14,9 @@ Verified locally on Windows with Node.js 24.15.0 and Python 3.10 on 3 November 2
 - An isolated `APP_MODE=live` server on port 8890 populated six CoinGecko quotes. Two shortened camera dwell intervals selected DOGE and recorded one $500 virtual DOGE buy, leaving $9,500 virtual cash. The trade source was `camera`; no real order was sent.
 - The default demo API returned DOGE, SHIB, PEPE, BONK, WIF and TRUMP with `scenario` source, four sample trades and a DOGE benchmark. Small prices remained visible at full useful precision.
 - Browser inspection at 1440px and 390px showed the updated hero, portfolio, tank zones and journal, no console errors or warnings, and no page-level horizontal overflow.
-- The prior public Vercel release returned HTTP 200 with six scenario quotes and four sample trades. Its browser checks at 1440px and 390px found no console errors or horizontal overflow. The admin and Neon release needs a fresh production check after deployment.
+- The production Vercel release returned HTTP 200 for `/admin`, `/api/health`, `/api/snapshot` and `/api/admin`. Health reported a connected preview database, while the public snapshot retained six scenario quotes and four sample trades.
+- On the deployed site, password sign-in opened the admin overview. Saving a revised stream placeholder note succeeded, and a fresh public API request and browser page displayed the saved text. Sign-out returned to the login screen; an unauthenticated production write returned HTTP 401.
+- Local, GitHub `main` and the production Vercel deployment were checked against matching commit hashes for that live check.
 
 Current screenshots: `output/playwright/memecoin-desktop-hero.png`, `output/playwright/memecoin-desktop-portfolio.png`, `output/playwright/memecoin-desktop-tank.png`, `output/playwright/memecoin-mobile-hero.png`, `output/playwright/memecoin-mobile-portfolio.png` and `output/playwright/memecoin-mobile-journal.png`. The `output/` directory is ignored by Git.
 
