@@ -2,6 +2,8 @@
 
 ## Vercel sample preview
 
+Production URL: <https://vlad-the-fish-trader-three.vercel.app/>. The project is connected to the public `Zelvf/vlad-the-fish-trader` GitHub repository and deploys from `main`.
+
 `vercel.json` builds the Vite site in `vercel` mode. `api/snapshot.ts` creates a temporary in-memory demo ledger for each request; `api/health.ts` reports the stateless sample mode. The browser polls the snapshot every minute. No `/api/stream` or observation-ingest route is provided on Vercel, and sample trades are never persisted. The pending YouTube Live player can be enabled later by setting a valid 11-character `YOUTUBE_LIVE_VIDEO_ID` environment variable and redeploying.
 
 This deployment lets the public inspect the interface, methodology, and labelled sample portfolio. It is not a live fish-trading session.

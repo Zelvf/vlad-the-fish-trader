@@ -6,7 +6,7 @@ The default mode is a **labelled sample preview**. Its prices, past trades and c
 
 ## Public preview
 
-The Vercel deployment serves the animated site and a stateless sample snapshot. It uses the same sample portfolio calculations as the local demo, but regenerates them on each request; it does not accept observations or preserve trades. It polls its sample endpoint every minute instead of opening a long-lived event stream. Set `YOUTUBE_LIVE_VIDEO_ID` in the Vercel project when Vlad's stream is ready to enable the YouTube player. The camera-driven paper ledger requires the persistent Node deployment described below.
+[Open the Vercel preview](https://vlad-the-fish-trader-three.vercel.app/). It serves the animated site and a stateless sample snapshot. It uses the same sample portfolio calculations as the local demo, but regenerates them on each request; it does not accept observations or preserve trades. It polls its sample endpoint every minute instead of opening a long-lived event stream. Set `YOUTUBE_LIVE_VIDEO_ID` in the Vercel project when Vlad's stream is ready to enable the YouTube player. The camera-driven paper ledger requires the persistent Node deployment described below.
 
 ## Run locally on Windows
 
