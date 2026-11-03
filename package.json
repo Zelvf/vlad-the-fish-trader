@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": { "node": "24.x" },
   "scripts": {
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "tsx watch server/index.ts",
