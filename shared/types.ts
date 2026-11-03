@@ -1,4 +1,5 @@
 import type { SymbolCode, TradeSide, ZoneCode } from './catalog.js';
+import type { SiteSettings, TradingRules } from './admin.js';
 
 export type AppMode = 'demo' | 'live';
 export type QuoteSource = 'scenario' | 'coingecko';
@@ -19,7 +20,7 @@ export interface Trade {
   price: number;
   notional: number;
   executedAt: string;
-  source: 'camera' | 'sample';
+  source: 'camera' | 'sample' | 'admin';
 }
 
 export interface Activity {
@@ -62,6 +63,7 @@ export interface Snapshot {
   pricingLabel: string;
   generatedAt: string;
   youtubeVideoId: string | null;
+  site: SiteSettings;
   initialCash: number;
   cash: number;
   portfolioValue: number;
@@ -77,6 +79,6 @@ export interface Snapshot {
   activity: Activity[];
   equity: EquityPoint[];
   signal: Signal;
-  rules: { dwellMs: number; cooldownMs: number; orderNotional: number };
+  rules: TradingRules;
   lastQuoteAt: string | null;
 }

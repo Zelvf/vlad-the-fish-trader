@@ -13,7 +13,16 @@ export class SignalEngine {
   private selectedAt = 0;
   private cooldownUntil = 0;
 
-  constructor(private readonly dwellMs: number, private readonly cooldownMs: number) {}
+  constructor(private dwellMs: number, private cooldownMs: number) {}
+
+  configure(dwellMs: number, cooldownMs: number): void {
+    if (dwellMs === this.dwellMs && cooldownMs === this.cooldownMs) return;
+    this.dwellMs = dwellMs;
+    this.cooldownMs = cooldownMs;
+    this.candidate = null;
+    this.candidateFired = false;
+    this.selected = null;
+  }
 
   ingest(observation: Observation, now = Date.now()): { selection?: SymbolCode; decision?: Decision } {
     if (this.latest && now - this.latest.receivedAt > 10_000) {

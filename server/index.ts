@@ -6,10 +6,13 @@ import { config } from './config.js';
 import { Store } from './store.js';
 import { SignalEngine, type Observation } from './signal-engine.js';
 import { refreshCoinGecko } from './market-data.js';
+import { validateAdminTrade, validateQuote, validateRules, validateSite } from '../shared/admin.js';
+import { adminConfigured, clearSessionCookie, originAllowed, passwordMatches, sessionCookie, sessionValid } from './admin-auth.js';
 
 const app = express();
 const store = new Store(config.databasePath, config.mode, config.startingCash);
-const signal = new SignalEngine(config.dwellMs, config.cooldownMs);
+const initialRules = store.rules(config);
+const signal = new SignalEngine(initialRules.dwellMs, initialRules.cooldownMs);
 const clients = new Set<express.Response>();
 const snapshot = () => store.snapshot(signal, config);
 
@@ -37,7 +40,82 @@ function tokenMatches(value: string | undefined): boolean {
 app.get('/api/health', (_request, response) => {
   response.json({ ok: true, mode: config.mode, timestamp: new Date().toISOString(),
     cameraConnected: signal.state().cameraConnected, quoteCount: store.quotes().length, quoteProvider: config.marketProvider,
-    streamConfigured: Boolean(config.youtubeVideoId) });
+    streamConfigured: Boolean(store.site(config.youtubeVideoId).youtubeVideoId) });
+});
+
+const loginAttempts = new Map<string, { count: number; started: number; lockedUntil: number }>();
+const adminSecure = (request: express.Request) => request.secure || request.get('x-forwarded-proto') === 'https';
+const adminJson = (response: express.Response, status: number, body: unknown) => {
+  response.setHeader('Cache-Control', 'no-store');
+  response.status(status).json(body);
+};
+
+app.get('/api/admin', (request, response) => {
+  if (!adminConfigured()) return adminJson(response, 503, { configured: false, error: 'Set ADMIN_PASSWORD and ADMIN_SESSION_SECRET on the server.' });
+  if (!sessionValid(request.get('cookie'), adminSecure(request))) return adminJson(response, 200, { configured: true, authenticated: false });
+  return adminJson(response, 200, { configured: true, authenticated: true, storage: 'SQLite ledger', snapshot: snapshot() });
+});
+
+app.post('/api/admin', (request, response) => {
+  if (!adminConfigured()) return adminJson(response, 503, { configured: false, error: 'Set ADMIN_PASSWORD and ADMIN_SESSION_SECRET on the server.' });
+  if (!originAllowed(request.get('origin'), request.get('host'))) return adminJson(response, 403, { error: 'Request origin is not allowed.' });
+  const body = request.body as Record<string, unknown> | null;
+  if (!body || typeof body !== 'object') return adminJson(response, 400, { error: 'Send a JSON object.' });
+  const secure = adminSecure(request);
+  if (body.action === 'login') {
+    const key = request.ip || 'unknown';
+    const now = Date.now();
+    const entry = loginAttempts.get(key);
+    if (entry && entry.lockedUntil > now) return adminJson(response, 429, { error: 'Too many attempts. Try again in 15 minutes.' });
+    if (!passwordMatches(body.password)) {
+      const count = entry && now - entry.started < 15 * 60_000 ? entry.count + 1 : 1;
+      loginAttempts.set(key, { count, started: count === 1 ? now : entry!.started, lockedUntil: count >= 5 ? now + 15 * 60_000 : 0 });
+      return adminJson(response, 401, { error: 'Incorrect password.' });
+    }
+    loginAttempts.delete(key);
+    response.setHeader('Set-Cookie', sessionCookie(secure));
+    return adminJson(response, 200, { ok: true });
+  }
+  if (body.action === 'logout') {
+    response.setHeader('Set-Cookie', clearSessionCookie(secure));
+    return adminJson(response, 200, { ok: true });
+  }
+  if (!sessionValid(request.get('cookie'), secure)) return adminJson(response, 401, { error: 'Sign in to make changes.' });
+  try {
+    if (body.action === 'saveSite') {
+      store.setSite(validateSite(body.site));
+      broadcast();
+      return adminJson(response, 200, { ok: true });
+    }
+    if (body.action === 'saveRules') {
+      const rules = validateRules(body.rules);
+      store.setRules(rules);
+      signal.configure(rules.dwellMs, rules.cooldownMs);
+      broadcast();
+      return adminJson(response, 200, { ok: true });
+    }
+    if (body.action === 'saveQuote') {
+      if (config.mode !== 'demo') return adminJson(response, 409, { error: 'Manual scenario prices are available in demo mode only.' });
+      const { symbol, price } = validateQuote(body.quote);
+      store.setScenarioPrice(symbol, price);
+      broadcast();
+      return adminJson(response, 200, { ok: true });
+    }
+    if (body.action === 'addTrade') {
+      const { symbol, side, notional } = validateAdminTrade(body.trade);
+      const quote = store.quote(symbol);
+      if (!quote) return adminJson(response, 400, { error: 'No price exists for that coin.' });
+      if (config.mode === 'live' && Date.now() - Date.parse(quote.observedAt) > config.maxQuoteAgeMs) {
+        return adminJson(response, 400, { error: 'The reference price is stale.' });
+      }
+      const trade = store.recordTrade(symbol, side, quote.price, notional, 'admin');
+      if (!trade) return adminJson(response, 400, { error: 'Insufficient virtual cash or coin units for this trade.' });
+      store.addActivity('trade', `Admin recorded a ${side} ${symbol} paper trade for $${trade.notional.toFixed(2)}.`);
+      broadcast();
+      return adminJson(response, 200, { ok: true });
+    }
+    return adminJson(response, 400, { error: 'Unknown admin action.' });
+  } catch (error) { return adminJson(response, 400, { error: (error as Error).message }); }
 });
 
 app.get('/api/snapshot', (_request, response) => {
@@ -92,7 +170,7 @@ app.post('/api/ingest/observation', (request, response) => {
     else if (quoteAge > config.maxQuoteAgeMs || quoteAge < -5_000) reason = 'the price is stale';
     if (reason) store.addActivity('skip', `${side} ${symbol} skipped: ${reason}.`);
     else {
-      const trade = store.recordTrade(symbol, side, quote!.price, config.orderNotional, 'camera');
+      const trade = store.recordTrade(symbol, side, quote!.price, store.rules(config).orderNotional, 'camera');
       if (trade) store.addActivity('trade', `Vlad ${side === 'BUY' ? 'bought' : 'sold'} ${symbol} for $${trade.notional.toFixed(2)} in the paper portfolio.`);
       else store.addActivity('skip', `${side} ${symbol} skipped: insufficient ${side === 'BUY' ? 'virtual cash' : 'coin units'}.`);
     }

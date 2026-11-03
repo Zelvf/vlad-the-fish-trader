@@ -1,13 +1,20 @@
+import { loadPreviewData } from '../server/preview-db.js';
+
 export default {
-  fetch(): Response {
+  async fetch(): Promise<Response> {
+    let databaseConnected = false;
+    let streamConfigured = false;
+    try { const data = await loadPreviewData(); databaseConnected = true; streamConfigured = Boolean(data.site.youtubeVideoId); }
+    catch { /* Health reports the outage. */ }
     return Response.json({
-      ok: true,
+      ok: databaseConnected,
       mode: 'demo',
-      deployment: 'stateless-sample',
+      deployment: 'database-backed-preview',
+      databaseConnected,
       timestamp: new Date().toISOString(),
       cameraConnected: false,
       quoteProvider: 'scenario',
-      streamConfigured: /^[\w-]{11}$/.test(process.env.YOUTUBE_LIVE_VIDEO_ID?.trim() || ''),
-    }, { headers: { 'Cache-Control': 'no-store' } });
+      streamConfigured,
+    }, { status: databaseConnected ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
   },
 };

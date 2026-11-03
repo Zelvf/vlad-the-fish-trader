@@ -6,7 +6,7 @@ The default mode is a **labelled sample preview**. Its prices, past trades and c
 
 ## Public preview
 
-[Open the Vercel preview](https://vlad-the-fish-trader-three.vercel.app/). It serves the animated site and a stateless sample snapshot. It uses the same sample portfolio calculations as the local demo, but regenerates them on each request; it does not accept observations or preserve trades. It polls its sample endpoint every minute instead of opening a long-lived event stream. Set `YOUTUBE_LIVE_VIDEO_ID` in the Vercel project when Vlad's stream is ready to enable the YouTube player. The camera-driven paper ledger requires the persistent Node deployment described below.
+[Open the Vercel preview](https://vlad-the-fish-trader-three.vercel.app/) or its [protected control room](https://vlad-the-fish-trader-three.vercel.app/admin). The public page starts from a clearly labelled sample session. A dedicated Neon database stores admin edits to the site copy, YouTube Live ID, simulation rules, scenario prices, and manual paper trades. The sample baseline is reconstructed for each request, while admin changes persist and manual trades are labelled `Admin` in the public history. The browser polls the snapshot every minute. This Vercel release does not accept camera observations; the camera-driven ledger requires the persistent Node deployment described below. See [admin guide](docs/ADMIN.md).
 
 ## Run locally on Windows
 
@@ -19,6 +19,8 @@ npm.cmd run dev
 ```
 
 Open `http://127.0.0.1:5173`. The API listens at `http://127.0.0.1:8787`. Edit `.env` to add Vlad's **current YouTube Live video ID** as `YOUTUBE_LIVE_VIDEO_ID`. Do not use the Michael Reeves reference video's ID as a live stream.
+
+The local control room is at `http://127.0.0.1:5173/admin`. Set `ADMIN_PASSWORD` and a random `ADMIN_SESSION_SECRET` of at least 32 characters in `.env` to enable it. The password is never included in the frontend bundle. Local admin edits are saved to the configured SQLite ledger.
 
 To create an observation secret, run:
 
@@ -64,10 +66,11 @@ Crypto trades around the clock on Robinhood subject to maintenance, but this sim
 | --- | --- | --- |
 | GET | `/api/health` | Process, camera and stream status |
 | GET | `/api/snapshot` | Entire public paper state |
+| GET/POST | `/api/admin` | Password-protected site, rule and paper-ledger controls |
 | GET | `/api/stream` | Server-sent snapshot updates |
 | POST | `/api/ingest/observation` | Authenticated `{x,y,confidence,observedAt}` camera observation |
 
-Observations use normalized coordinates (`0` to `1`) and `Authorization: Bearer <INGEST_TOKEN>`. Read [methodology](docs/METHODOLOGY.md) for all trade conditions and calculations. There is no public trade button or write API for the portfolio.
+Observations use normalized coordinates (`0` to `1`) and `Authorization: Bearer <INGEST_TOKEN>`. Read [methodology](docs/METHODOLOGY.md) for all trade conditions and calculations. There is no public trade button or unauthenticated write API for the portfolio. Vercel serves `/api/snapshot`, `/api/health` and `/api/admin`; the persistent Node server also serves `/api/stream` and observation ingest.
 
 ## Project map
 
@@ -75,7 +78,7 @@ Observations use normalized coordinates (`0` to `1`) and `Authorization: Bearer 
 | --- | --- |
 | `src/` | React site, GSAP intro and scroll motion, procedural Three.js fish field |
 | `server/` | Express API, deterministic signal state machine, quote adapter, SQLite ledger |
-| `api/` | Stateless, read-only sample endpoints for the Vercel preview |
+| `api/` | Vercel preview and admin functions backed by a dedicated Neon database |
 | `shared/` | Symbols, zones and API types used by both halves |
 | `tracker/` | Optional Python/OpenCV camera bridge |
 | `public/vlad-placeholder.png` | Generated temporary visual; provenance and prompt in `ASSETS.md` |
@@ -83,4 +86,4 @@ Observations use normalized coordinates (`0` to `1`) and `Authorization: Bearer 
 
 ## Production boundary
 
-The real camera-driven service can be deployed to a **persistent Node 24 host**. A single long-lived process and persistent volume are needed for SQLite and SSE. Configure the live video ID, ingest secret, quote provider and camera bridge before presenting a real session. The Vercel release is a read-only sample preview. The site always identifies trades as simulated. See [deployment notes](docs/DEPLOYMENT.md).
+The real camera-driven service can be deployed to a **persistent Node 24 host**. A single long-lived process and persistent volume are needed for SQLite and SSE. Configure the live video ID, ingest secret, quote provider and camera bridge before presenting a real session. The Vercel release has an editable, database-backed **sample** portfolio, separate from that live SQLite ledger. The site always identifies trades as simulated. See [deployment notes](docs/DEPLOYMENT.md).

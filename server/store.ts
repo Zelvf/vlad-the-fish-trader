@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { ASSET_UNIVERSE, BENCHMARK_SYMBOL, SYMBOLS, isSymbol, type SymbolCode, type TradeSide } from '../shared/catalog.js';
+import { DEFAULT_SITE, validateRules, validateSite, type SiteSettings, type TradingRules } from '../shared/admin.js';
 import type { Activity, AppMode, EquityPoint, Position, Quote, Snapshot, Trade } from '../shared/types.js';
 import type { SignalEngine } from './signal-engine.js';
 
@@ -82,6 +83,47 @@ export class Store {
     this.db.prepare('INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, value);
   }
 
+  site(fallbackVideoId: string | null = null): SiteSettings {
+    const saved = this.setting('site');
+    if (saved) {
+      try { return validateSite(JSON.parse(saved)); } catch { /* Use the safe default if stored data is invalid. */ }
+    }
+    return { ...DEFAULT_SITE, youtubeVideoId: fallbackVideoId };
+  }
+
+  setSite(value: SiteSettings): void {
+    this.setSetting('site', JSON.stringify(validateSite(value)));
+    this.addActivity('system', 'Admin updated the public site settings.');
+  }
+
+  rules(fallback: TradingRules): TradingRules {
+    const saved = this.setting('rules');
+    if (saved) {
+      try { return validateRules(JSON.parse(saved)); } catch { /* Use configured defaults if stored data is invalid. */ }
+    }
+    return fallback;
+  }
+
+  setRules(value: TradingRules): void {
+    this.setSetting('rules', JSON.stringify(validateRules(value)));
+    this.addActivity('system', 'Admin updated the paper-trading rules.');
+  }
+
+  scenarioOverrides(): Partial<Record<SymbolCode, number>> {
+    try { return JSON.parse(this.setting('scenario_overrides') || '{}') as Partial<Record<SymbolCode, number>>; }
+    catch { return {}; }
+  }
+
+  setScenarioPrice(symbol: SymbolCode, price: number): void {
+    if (this.mode !== 'demo' || !Number.isFinite(price) || price <= 0) throw new Error('Scenario prices are available in demo mode only.');
+    const prior = this.quote(symbol);
+    if (!prior) throw new Error('No scenario quote exists for that coin.');
+    this.setSetting('scenario_overrides', JSON.stringify({ ...this.scenarioOverrides(), [symbol]: price }));
+    this.upsertQuote({ ...prior, price, observedAt: new Date().toISOString(), source: 'scenario' });
+    this.addActivity('system', `Admin changed the ${symbol} scenario price.`);
+    this.recordEquity();
+  }
+
   private seedDemo(): void {
     const now = Date.now();
     demoQuotes.forEach((quote) => this.upsertQuote({ ...quote, observedAt: new Date(now).toISOString(), source: 'scenario' }));
@@ -126,9 +168,10 @@ export class Store {
   updateScenarioQuotes(now = Date.now()): void {
     if (this.mode !== 'demo') return;
     const elapsed = (now - new Date(this.setting('created_at') || now).getTime()) / 60_000;
+    const overrides = this.scenarioOverrides();
     demoQuotes.forEach((quote, index) => {
       const motion = Math.sin(elapsed / 11 + index * 1.37) * 0.004 + Math.sin(elapsed / 27 + index * 0.81) * 0.002;
-      this.upsertQuote({ ...quote, price: Number((quote.price * (1 + motion)).toPrecision(12)), observedAt: new Date(now).toISOString(), source: 'scenario' });
+      this.upsertQuote({ ...quote, price: overrides[quote.symbol] ?? Number((quote.price * (1 + motion)).toPrecision(12)), observedAt: new Date(now).toISOString(), source: 'scenario' });
     });
     this.recordEquity(new Date(now).toISOString());
   }
@@ -235,6 +278,8 @@ export class Store {
 
   snapshot(signal: SignalEngine, settings: { youtubeVideoId: string | null; dwellMs: number; cooldownMs: number; orderNotional: number }): Snapshot {
     const now = new Date();
+    const site = this.site(settings.youtubeVideoId);
+    const rules = this.rules(settings);
     const positions = this.positions();
     const quotes = this.quotes();
     const portfolioValue = round2(this.cash() + positions.reduce((sum, position) => sum + position.marketValue, 0));
@@ -249,7 +294,7 @@ export class Store {
     return {
       mode: this.mode,
       pricingLabel: this.mode === 'demo' ? 'Scenario prices · sample session' : quotes.length ? 'CoinGecko reference prices · paper orders' : 'Reference prices not connected',
-      generatedAt: now.toISOString(), youtubeVideoId: settings.youtubeVideoId,
+      generatedAt: now.toISOString(), youtubeVideoId: site.youtubeVideoId, site,
       initialCash, cash: this.cash(), portfolioValue,
       totalPnl: round2(portfolioValue - initialCash),
       totalPnlPercent: (portfolioValue / initialCash - 1) * 100,
@@ -258,7 +303,7 @@ export class Store {
       tradesCount: Number((this.db.prepare('SELECT COUNT(*) AS count FROM trades').get() as { count: number }).count),
       positions, quotes, trades: this.trades(), activity: this.activity(), equity: points,
       signal: signal.state(),
-      rules: { dwellMs: settings.dwellMs, cooldownMs: settings.cooldownMs, orderNotional: settings.orderNotional },
+      rules,
       lastQuoteAt: times.at(-1) ?? null,
     };
   }

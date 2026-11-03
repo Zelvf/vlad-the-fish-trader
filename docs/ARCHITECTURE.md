@@ -18,7 +18,7 @@ flowchart LR
 
 The broadcast and decision paths are independent. YouTube's iframe offers playback controls, not raw image frames for browser-side fish tracking; the tracker reads a local or RTSP camera source. Viewer video can be delayed relative to signal timestamps. The interface therefore places the tank map beside the video instead of falsely aligning a marker on a delayed embed.
 
-The public Vercel preview follows a smaller, explicitly simulated path: React polls a read-only `/api/snapshot` function, which creates an in-memory demo ledger for that request. It has no camera ingest, quote polling, SSE, or persistent portfolio. The diagram above describes the persistent Node service for a future real fish session.
+The public Vercel preview follows a smaller, explicitly simulated path: React polls `/api/snapshot`, which rebuilds a sample baseline and replays admin edits from a dedicated Neon database. The password-protected `/admin` panel edits site copy, stream ID, rules, scenario prices and append-only admin paper trades through `/api/admin`. It has no camera ingest, quote polling or SSE. The diagram above describes the separate persistent Node service for a future real fish session.
 
 ## Components
 

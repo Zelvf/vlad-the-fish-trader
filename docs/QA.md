@@ -5,13 +5,16 @@ Verified locally on Windows with Node.js 24.15.0 and Python 3.10 on 3 November 2
 ## Current meme-coin implementation
 
 - `npm.cmd run check` passed for frontend and server TypeScript.
-- `npm.cmd run build` and `npm.cmd run build:vercel` passed. The Vercel-mode frontend uses one-minute snapshot polling; its read-only function returned six sample quotes and four sample trades when called locally.
-- `npm.cmd test` passed five tests: dwell/action/cooldown, confidence and camera gaps, tiny-price coin ledger fills and restart persistence, asset-universe rejection, and one-batch CoinGecko mapping with full precision and 24-hour changes.
+- `npm.cmd run build`, `npm.cmd run build:vercel` and `vercel build --prod` passed. The Vercel-mode frontend uses one-minute snapshot polling and builds the admin, health and public snapshot functions.
+- `npm.cmd test` passed eight tests: dwell/action/cooldown, confidence and camera gaps, tiny-price coin ledger fills and restart persistence, asset-universe rejection, one-batch CoinGecko mapping, admin site/rule validation, signed session and origin checks, and replay of persisted preview edits.
+- The isolated local admin API accepted a password login, changed the public headline and rule timing, set a DOGE scenario price, and recorded a $100 admin-labelled paper buy. Cash became $8,650. The headline, rule, quote override and trade remained after a process restart. The test ledger is ignored in `output/`.
+- A fresh browser session loaded `/admin` without console errors. Desktop and 390px mobile views had no horizontal overflow; the sign-in and overview screens were visually inspected.
+- The newly provisioned Neon preview database initialized and returned the sample portfolio. A stale-revision manual trade request was rejected without an insert.
 - A direct keyless request to CoinGecko's documented endpoint returned HTTP 200, all six configured IDs, positive USD prices and provider timestamps. This checks the ID mapping; it is not a claim of stable keyless service.
 - An isolated `APP_MODE=live` server on port 8890 populated six CoinGecko quotes. Two shortened camera dwell intervals selected DOGE and recorded one $500 virtual DOGE buy, leaving $9,500 virtual cash. The trade source was `camera`; no real order was sent.
 - The default demo API returned DOGE, SHIB, PEPE, BONK, WIF and TRUMP with `scenario` source, four sample trades and a DOGE benchmark. Small prices remained visible at full useful precision.
 - Browser inspection at 1440px and 390px showed the updated hero, portfolio, tank zones and journal, no console errors or warnings, and no page-level horizontal overflow.
-- The public Vercel URL returned HTTP 200. `/api/snapshot` returned `demo`, six scenario quotes, four sample trades, and no camera or stream claim; `/api/health` reported `stateless-sample`. Browser checks at 1440px and 390px found no console errors or horizontal overflow. The deployment was traced to the same commit as GitHub `main`.
+- The prior public Vercel release returned HTTP 200 with six scenario quotes and four sample trades. Its browser checks at 1440px and 390px found no console errors or horizontal overflow. The admin and Neon release needs a fresh production check after deployment.
 
 Current screenshots: `output/playwright/memecoin-desktop-hero.png`, `output/playwright/memecoin-desktop-portfolio.png`, `output/playwright/memecoin-desktop-tank.png`, `output/playwright/memecoin-mobile-hero.png`, `output/playwright/memecoin-mobile-portfolio.png` and `output/playwright/memecoin-mobile-journal.png`. The `output/` directory is ignored by Git.
 
@@ -20,7 +23,7 @@ Current screenshots: `output/playwright/memecoin-desktop-hero.png`, `output/play
 - Vlad's actual YouTube Live video ID, so live playback could not be verified.
 - Vlad's actual camera/tank footage, so tracking thresholds and ROI remain a starting point.
 - A CoinGecko Demo key and a plan permitting the intended public price display. Keyless live polling was exercised locally, but production reliability and attribution terms still need review.
-- A persistent HTTPS host for the camera-driven API. The Vercel deployment is a stateless sample preview.
+- A persistent HTTPS host for the camera-driven API. The Vercel deployment is a database-backed sample preview, not a camera receiver.
 
 The UI intentionally labels sample history and scenario prices in the absence of those inputs.
 

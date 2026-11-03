@@ -1,24 +1,17 @@
-import { Store } from '../server/store.js';
-import { SignalEngine } from '../server/signal-engine.js';
+import { buildPreviewSnapshot, loadPreviewData } from '../server/preview-db.js';
 
 // The public Vercel deployment is a stateless sample. The persistent camera
 // ledger and event stream run only on the long-lived Node server.
 export default {
-  fetch(): Response {
-    const store = new Store(':memory:', 'demo', 10_000);
+  async fetch(): Promise<Response> {
     try {
-      const videoId = process.env.YOUTUBE_LIVE_VIDEO_ID?.trim();
-      const snapshot = store.snapshot(new SignalEngine(5_000, 20_000), {
-        youtubeVideoId: videoId && /^[\w-]{11}$/.test(videoId) ? videoId : null,
-        dwellMs: 5_000,
-        cooldownMs: 20_000,
-        orderNotional: 500,
-      });
+      const snapshot = buildPreviewSnapshot(await loadPreviewData());
       return Response.json(snapshot, {
         headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
       });
-    } finally {
-      store.close();
+    } catch (error) {
+      console.error('Preview snapshot failed:', error);
+      return Response.json({ error: 'The preview database is unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
     }
   },
 };

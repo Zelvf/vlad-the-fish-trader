@@ -11,6 +11,7 @@
 
 ## During a session
 
+- The control room on the Vercel preview edits only its Neon sample database. Use `/admin` on the persistent Node host for that host's SQLite ledger; do not assume the two portfolios are synchronized.
 - A stale or missing CoinGecko reference price prevents a new paper fill. Existing holdings can still display the last stored valuation, so inspect price timestamps when diagnosing a flat chart.
 - The simulator does not know whether Robinhood is under maintenance or whether a coin is tradable for a viewer's region. Never describe its virtual fills as Robinhood execution.
 - If the camera image changes size, crop or orientation, recalibrate `--roi` and `--mirror` before restarting observation ingest.
