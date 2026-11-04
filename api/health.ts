@@ -9,11 +9,11 @@ export default {
     return Response.json({
       ok: databaseConnected,
       mode: 'demo',
-      deployment: 'database-backed-preview',
+      deployment: 'database-backed',
       databaseConnected,
       timestamp: new Date().toISOString(),
       cameraConnected: false,
-      quoteProvider: 'scenario',
+      quoteProvider: 'generated',
       streamConfigured,
     }, { status: databaseConnected ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
   },

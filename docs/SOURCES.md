@@ -13,6 +13,6 @@ The implementation and user-facing methodology draw on these primary sources:
 9. [Florence's motion-tooling post](https://x.com/flxrnc/status/2117318336837017846) — the user's supplied repo list. GSAP and Three.js are runtime dependencies here.
 10. [Lusion, About Us](https://lusion.co/about/) — visual reference for cinematic scale, monochrome depth, restrained navigation and scroll pacing. No Lusion assets or code are included.
 11. [Impeccable audit reference](https://github.com/pbakaus/impeccable/blob/main/skill/reference/audit.md) — accessibility, performance, responsive design and implementation-integrity checks for final review.
-12. [Neon serverless driver](https://neon.com/docs/serverless/serverless-driver) and [Vercel Marketplace storage](https://vercel.com/docs/marketplace-storage) — persistent, separate preview admin data on Vercel.
+12. [Neon serverless driver](https://neon.com/docs/serverless/serverless-driver) and [Vercel Marketplace storage](https://vercel.com/docs/marketplace-storage) — persistent, separate account data on Vercel.
 
 The aquarium still in `public/vlad-placeholder.png` was generated specifically for this project as temporary visual content. It is **not** a photo of Vlad or a frame from the reference video. Replace it when real fish media is supplied.

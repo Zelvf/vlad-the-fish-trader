@@ -85,11 +85,11 @@ function openPreviewStore(data: PreviewData): Store {
     const now = new Date().toISOString();
     for (const [symbol, price] of Object.entries(data.quoteOverrides)) {
       const quote = store.quote(symbol as SymbolCode);
-      if (quote && price && price > 0) store.upsertQuote({ ...quote, price, observedAt: now, source: 'scenario' });
+      if (quote && price && price > 0) store.upsertQuote({ ...quote, price, observedAt: now, source: 'generated' });
     }
     for (const trade of data.adminTrades) {
       const filled = store.recordTrade(trade.symbol, trade.side, trade.price, trade.notional, 'admin', trade.executedAt);
-      if (filled) store.addActivity('trade', `Admin recorded a ${trade.side} ${trade.symbol} paper trade for $${filled.notional.toFixed(2)}.`, trade.executedAt);
+      if (filled) store.addActivity('trade', `Admin recorded a ${trade.side} ${trade.symbol} trade for $${filled.notional.toFixed(2)}.`, trade.executedAt);
     }
     if (data.adminTrades.length) store.recordEquity(now);
     return store;
@@ -106,7 +106,7 @@ export function buildPreviewSnapshot(data: PreviewData): Snapshot {
     snapshot.site = data.site;
     snapshot.youtubeVideoId = data.site.youtubeVideoId;
     snapshot.rules = data.rules;
-    snapshot.pricingLabel = 'Scenario prices · editable sample session';
+    snapshot.pricingLabel = 'Generated prices · editable account';
     return snapshot;
   } finally {
     store.close();

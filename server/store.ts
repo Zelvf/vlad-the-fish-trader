@@ -7,6 +7,17 @@ import type { Activity, AppMode, EquityPoint, Position, Quote, Snapshot, Trade }
 import type { SignalEngine } from './signal-engine.js';
 
 const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+const currentActivityMessage = (message: string): string => message
+  .replace('Sample paper session loaded.', 'Generated history loaded.')
+  .replace(/paper-trading/gi, 'trade')
+  .replace(/paper portfolio/gi, 'account ledger')
+  .replace(/paper trade/gi, 'trade')
+  .replace(/simulated trade/gi, 'trade')
+  .replace(/virtual meme-coin portfolio/gi, 'meme-coin account')
+  .replace(/virtual cash/gi, 'cash balance')
+  .replace(/sample/gi, 'generated')
+  .replace(/scenario history/gi, 'generated history')
+  .replace(/scenario price/gi, 'display price');
 const demoQuotes = [
   { symbol: 'DOGE', price: 0.18, price24hAgo: 0.176 },
   { symbol: 'SHIB', price: 0.0000124, price24hAgo: 0.0000121 },
@@ -68,7 +79,7 @@ export class Store {
       this.setSetting('cash', String(initialCash));
       this.setSetting('created_at', new Date().toISOString());
       if (mode === 'demo') this.seedDemo();
-      else this.addActivity('system', 'Meme-coin paper portfolio created. Waiting for reference prices and Vlad observations.');
+      else this.addActivity('system', 'Meme-coin account created. Waiting for reference prices and Vlad observations.');
     }
   }
 
@@ -106,7 +117,7 @@ export class Store {
 
   setRules(value: TradingRules): void {
     this.setSetting('rules', JSON.stringify(validateRules(value)));
-    this.addActivity('system', 'Admin updated the paper-trading rules.');
+    this.addActivity('system', 'Admin updated the trade rules.');
   }
 
   scenarioOverrides(): Partial<Record<SymbolCode, number>> {
@@ -115,18 +126,18 @@ export class Store {
   }
 
   setScenarioPrice(symbol: SymbolCode, price: number): void {
-    if (this.mode !== 'demo' || !Number.isFinite(price) || price <= 0) throw new Error('Scenario prices are available in demo mode only.');
+    if (this.mode !== 'demo' || !Number.isFinite(price) || price <= 0) throw new Error('Manual prices are available in demo mode only.');
     const prior = this.quote(symbol);
-    if (!prior) throw new Error('No scenario quote exists for that coin.');
+    if (!prior) throw new Error('No price exists for that coin.');
     this.setSetting('scenario_overrides', JSON.stringify({ ...this.scenarioOverrides(), [symbol]: price }));
-    this.upsertQuote({ ...prior, price, observedAt: new Date().toISOString(), source: 'scenario' });
-    this.addActivity('system', `Admin changed the ${symbol} scenario price.`);
+    this.upsertQuote({ ...prior, price, observedAt: new Date().toISOString(), source: 'generated' });
+    this.addActivity('system', `Admin changed the ${symbol} display price.`);
     this.recordEquity();
   }
 
   private seedDemo(): void {
     const now = Date.now();
-    demoQuotes.forEach((quote) => this.upsertQuote({ ...quote, observedAt: new Date(now).toISOString(), source: 'scenario' }));
+    demoQuotes.forEach((quote) => this.upsertQuote({ ...quote, observedAt: new Date(now).toISOString(), source: 'generated' }));
     const fixtures: Array<[SymbolCode, TradeSide, number, number, number]> = [
       ['DOGE', 'BUY', 500, 0.171, 48],
       ['PEPE', 'BUY', 500, 0.0000048, 33],
@@ -135,9 +146,9 @@ export class Store {
     ];
     for (const [symbol, side, amount, price, hoursAgo] of fixtures) {
       const at = new Date(now - hoursAgo * 3_600_000).toISOString();
-      this.recordTrade(symbol, side, price, amount, 'sample', at);
+      this.recordTrade(symbol, side, price, amount, 'generated', at);
     }
-    // Explicit preview history; it is never exported as live trading evidence.
+    // Generated history remains distinct from camera observations.
     const today = new Date(now).toISOString();
     const current = this.portfolioValue();
     const points = [
@@ -152,7 +163,7 @@ export class Store {
       const at = hoursAgo === 0 ? today : new Date(now - hoursAgo * 3_600_000).toISOString();
       this.db.prepare('INSERT INTO equity(at,value,benchmark_value) VALUES (?,?,?)').run(at, round2(value), round2(benchmarkValue));
     }
-    this.addActivity('system', 'Sample paper session loaded. Camera observations are not connected.');
+    this.addActivity('system', 'Generated history loaded. Camera observations are not connected.');
   }
 
   upsertQuote(quote: Quote): void {
@@ -171,7 +182,7 @@ export class Store {
     const overrides = this.scenarioOverrides();
     demoQuotes.forEach((quote, index) => {
       const motion = Math.sin(elapsed / 11 + index * 1.37) * 0.004 + Math.sin(elapsed / 27 + index * 0.81) * 0.002;
-      this.upsertQuote({ ...quote, price: overrides[quote.symbol] ?? Number((quote.price * (1 + motion)).toPrecision(12)), observedAt: new Date(now).toISOString(), source: 'scenario' });
+      this.upsertQuote({ ...quote, price: overrides[quote.symbol] ?? Number((quote.price * (1 + motion)).toPrecision(12)), observedAt: new Date(now).toISOString(), source: 'generated' });
     });
     this.recordEquity(new Date(now).toISOString());
   }
@@ -182,7 +193,7 @@ export class Store {
       const row = rows.find((item) => item.symbol === symbol);
       return row ? [{
         symbol, price: Number(row.price), price24hAgo: row.price_24h_ago === null ? null : Number(row.price_24h_ago),
-        observedAt: String(row.observed_at), source: row.source === 'coingecko' ? 'coingecko' as const : 'scenario' as const,
+        observedAt: String(row.observed_at), source: row.source === 'coingecko' ? 'coingecko' as const : 'generated' as const,
       }] : [];
     });
   }
@@ -262,13 +273,13 @@ export class Store {
       if (!isSymbol(symbol)) return [];
       return [{ id: Number(row.id), symbol, side: String(row.side) as TradeSide,
         units: Number(row.units), price: Number(row.price), notional: Number(row.notional),
-        executedAt: String(row.executed_at), source: String(row.source) as Trade['source'] }];
+        executedAt: String(row.executed_at), source: row.source === 'sample' || row.source === 'scenario' ? 'generated' : String(row.source) as Trade['source'] }];
     });
   }
 
   activity(limit = 20): Activity[] {
     return (this.db.prepare('SELECT * FROM activity ORDER BY id DESC LIMIT ?').all(limit) as Array<Record<string, unknown>>)
-      .map((row) => ({ id: Number(row.id), kind: String(row.kind) as Activity['kind'], message: String(row.message), createdAt: String(row.created_at) }));
+      .map((row) => ({ id: Number(row.id), kind: String(row.kind) as Activity['kind'], message: currentActivityMessage(String(row.message)), createdAt: String(row.created_at) }));
   }
 
   equity(limit = 400): EquityPoint[] {
@@ -293,7 +304,7 @@ export class Store {
     const times = quotes.map((quote) => quote.observedAt).sort();
     return {
       mode: this.mode,
-      pricingLabel: this.mode === 'demo' ? 'Scenario prices · sample session' : quotes.length ? 'CoinGecko reference prices · paper orders' : 'Reference prices not connected',
+      pricingLabel: this.mode === 'demo' ? 'Generated prices · account history' : quotes.length ? 'CoinGecko reference prices · recorded trades' : 'Reference prices not connected',
       generatedAt: now.toISOString(), youtubeVideoId: site.youtubeVideoId, site,
       initialCash, cash: this.cash(), portfolioValue,
       totalPnl: round2(portfolioValue - initialCash),

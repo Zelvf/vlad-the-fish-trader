@@ -44,7 +44,7 @@
 .admin-main { min-width: 0; background: #ebede9; }
 .admin-topbar { height: 72px; display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 0 clamp(28px, 5vw, 78px); border-bottom: 1px solid #c8ceca; background: #ebede9; color: #5b6667; font-size: 11px; }
 .admin-topbar > div { display: flex; align-items: center; gap: 26px; }
-.admin-paper-label { color: #ad5c42; font-weight: 700; }
+.admin-access-label { color: #ad5c42; font-weight: 700; }
 .admin-topbar button { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid #b3bcb8; border-radius: 50%; background: transparent; color: #293234; }
 .admin-content { width: min(1100px, 100%); min-height: calc(100vh - 72px); padding: 80px clamp(28px, 5vw, 78px) 110px; }
 .admin-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 340px); align-items: end; column-gap: 34px; padding-bottom: 72px; }
@@ -154,7 +154,7 @@
   .admin-trade-list small { grid-column: 2 / -1; padding-bottom: 10px; text-align: left; }
 }
 @media (max-width: 390px) {
-  .admin-paper-label { display: none; }
+  .admin-access-label { display: none; }
   .admin-stat-row > div { padding-right: 8px; }
   .admin-stat-row > div + div { padding-left: 8px; }
   .admin-stat-row strong { font-size: 21px; }

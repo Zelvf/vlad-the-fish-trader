@@ -2,7 +2,7 @@ import type { SymbolCode, TradeSide, ZoneCode } from './catalog.js';
 import type { SiteSettings, TradingRules } from './admin.js';
 
 export type AppMode = 'demo' | 'live';
-export type QuoteSource = 'scenario' | 'coingecko';
+export type QuoteSource = 'generated' | 'coingecko';
 
 export interface Quote {
   symbol: SymbolCode;
@@ -20,7 +20,7 @@ export interface Trade {
   price: number;
   notional: number;
   executedAt: string;
-  source: 'camera' | 'sample' | 'admin';
+  source: 'camera' | 'generated' | 'admin';
 }
 
 export interface Activity {

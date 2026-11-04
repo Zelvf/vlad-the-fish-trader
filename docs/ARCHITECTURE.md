@@ -11,21 +11,21 @@ flowchart LR
   CV -->|Bearer token + normalized coordinates| API[Express API]
   Q[CoinGecko USD prices, optional] --> API
   API --> E[Signal state machine]
-  E --> DB[(SQLite paper ledger)]
+  E --> DB[(SQLite account ledger)]
   DB --> API
   API -->|SSE snapshots| UI
 ```
 
 The broadcast and decision paths are independent. YouTube's iframe offers playback controls, not raw image frames for browser-side fish tracking; the tracker reads a local or RTSP camera source. Viewer video can be delayed relative to signal timestamps. The interface therefore places the tank map beside the video instead of falsely aligning a marker on a delayed embed.
 
-The public Vercel preview follows a smaller, explicitly simulated path: React polls `/api/snapshot`, which rebuilds a sample baseline and replays admin edits from a dedicated Neon database. The password-protected `/admin` panel edits site copy, stream ID, rules, scenario prices and append-only admin paper trades through `/api/admin`. It has no camera ingest, quote polling or SSE. The diagram above describes the separate persistent Node service for a future real fish session.
+The public Vercel site runs a separate fictional account path: React polls `/api/snapshot`, which rebuilds generated starting history and replays admin edits from a dedicated Neon database. The password-protected `/admin` panel edits site copy, stream ID, rules, entered prices and append-only admin trade entries through `/api/admin`. It has no camera ingest, quote polling or SSE. The diagram above describes the separate persistent Node service for a future real fish session.
 
 ## Components
 
 - **React/Vite frontend:** renders the live player, portfolio, benchmark, positions, tank map, history and source links. It never sends a trade request.
 - **Express API:** reads a SQLite database, streams snapshots by SSE, validates and authenticates observations, polls a quote provider and records fills or skips.
 - **SignalEngine:** pure timed state machine. A selection zone must hold for five seconds; BUY/SELL then requires another five seconds. Each uninterrupted dwell fires once, and a cooldown follows an action.
-- **Store:** persists cash, coin units, reference prices, trades, activity and equity points. Each paper fill updates cash, position and trade inside a SQLite transaction.
+- **Store:** persists cash, coin units, reference prices, trades, activity and equity points. Each recorded fill updates cash, position and trade inside a SQLite transaction.
 - **OpenCV bridge:** optional local process detecting an orange fish inside a calibrated crop and posting normalized center coordinates. It is an adjustable baseline, not a trained model for Vlad's actual tank.
 
 ## Data contract
@@ -45,7 +45,7 @@ Coordinates are in the calibrated tank crop, with `(0,0)` at its top-left. The A
 
 ## Persistence and event delivery
 
-The SQLite database uses WAL mode. Tables are `settings`, `quotes`, `positions`, `trades`, `activity` and `equity`. Sample records are inserted only when a new demo database is created. A database's mode and asset universe are fixed at initialization, so an older stock ledger cannot be relabelled as a meme-coin portfolio. SSE sends the full public snapshot on connect and then about once per second. The frontend reconnects automatically if the stream drops.
+The SQLite database uses WAL mode. Tables are `settings`, `quotes`, `positions`, `trades`, `activity` and `equity`. Generated records are inserted only when a new demo database is created. A database's mode and asset universe are fixed at initialization, so an older stock ledger cannot be relabelled as a meme-coin portfolio. SSE sends the full public snapshot on connect and then about once per second. The frontend reconnects automatically if the stream drops.
 
 This is a single-process design. To scale across multiple app instances, move the ledger to a shared database with transactional row controls and broadcast state through a shared event bus. Running separate SQLite copies behind a load balancer would split the portfolio.
 
@@ -54,7 +54,7 @@ This is a single-process design. To scale across multiple app instances, move th
 - `INGEST_TOKEN` stays on the server and local tracker; it is never sent to the browser.
 - Only the six catalogued meme-coin symbols are accepted by the price adapter and signal engine.
 - Quote API credentials remain server-side.
-- Demo prices are marked as scenario values, and sample history is labelled.
+- Generated prices and history are labelled, and the site states that no real trades occur.
 - Robinhood is a listing reference, not a price or order integration. The app has no broker credentials, wallet signing or real-money execution path.
 
 The tracker endpoint should be exposed through HTTPS behind a reverse proxy in production, with an appropriately long random token. Restrict ingress to the camera machine where practical.

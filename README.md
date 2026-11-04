@@ -1,12 +1,12 @@
 # Vlad the Fish Trader
 
-A full-stack, **paper-only** fish trading experiment. Vlad's location selects DOGE, SHIB, PEPE, BONK, WIF or TRUMP, then a separate BUY or SELL zone decides the order. These are meme coins shown as tradable on [Robinhood's U.S. availability page](https://robinhood.com/us/en/support/articles/coin-availability/) as checked on 3 November 2026; availability can vary by region. A persistent SQLite ledger records virtual coin units, cash, portfolio value, skipped signals and a DOGE buy-and-hold benchmark. The public site pairs a fish-shaped particle scene with a configurable YouTube Live player, server-sent updates, a tank map, chart, holdings, history and methodology.
+A full-stack fish-led trading experiment with a fictional account. Vlad's location selects DOGE, SHIB, PEPE, BONK, WIF or TRUMP, then a separate BUY or SELL zone decides the order. These are meme coins shown as tradable on [Robinhood's U.S. availability page](https://robinhood.com/us/en/support/articles/coin-availability/) as checked on 3 November 2026; availability can vary by region. A persistent SQLite ledger records coin units, cash, portfolio value, skipped signals and a DOGE buy-and-hold benchmark. The public site pairs a fish-shaped particle scene with a configurable YouTube Live player, server-sent updates, a tank map, chart, holdings, history and methodology.
 
-The default mode is a **labelled sample preview**. Its prices, past trades and chart points are scenario data, not market data or observed fish behavior. The project is independent of Robinhood. No Robinhood account, broker, wallet or blockchain transaction code is present.
+The default site displays **generated history** until Vlad's camera is connected. Its prices, past trades and chart points are generated values, not market data or observed fish behavior. No real money is invested and no order is placed. The project is independent of Robinhood. No Robinhood account, broker, wallet or blockchain transaction code is present.
 
-## Public preview
+## Public site
 
-[Open the Vercel preview](https://vlad-the-fish-trader-three.vercel.app/) or its [protected control room](https://vlad-the-fish-trader-three.vercel.app/admin). The public page starts from a clearly labelled sample session. A dedicated Neon database stores admin edits to the site copy, YouTube Live ID, simulation rules, scenario prices, and manual paper trades. The sample baseline is reconstructed for each request, while admin changes persist and manual trades are labelled `Admin` in the public history. The browser polls the snapshot every minute. This Vercel release does not accept camera observations; the camera-driven ledger requires the persistent Node deployment described below. See [admin guide](docs/ADMIN.md).
+[Open the site](https://vlad-the-fish-trader-three.vercel.app/) or its [protected control room](https://vlad-the-fish-trader-three.vercel.app/admin). The public page starts with generated history. A dedicated Neon database stores admin edits to the site copy, YouTube Live ID, decision rules, entered prices, and manual trade entries. The generated starting history is reconstructed for each request, while admin changes persist and manual trades are labelled `Admin` in the public history. The browser polls the snapshot every minute. This Vercel release does not accept camera observations; the camera-driven ledger requires the persistent Node deployment described below. See [admin guide](docs/ADMIN.md).
 
 ## Run locally on Windows
 
@@ -53,20 +53,20 @@ See [camera calibration](docs/CAMERA.md) for the exact tracking contract and lim
 
 | Mode | Portfolio data | Prices | Fish observations |
 | --- | --- | --- | --- |
-| `APP_MODE=demo` (default) | One-time sample trades plus any camera trades | Explicit scenario prices | Optional; no fake live camera status |
-| `APP_MODE=live` | Clean paper ledger | Optional CoinGecko USD reference prices | Required for new trades |
+| `APP_MODE=demo` (default) | Generated history plus any camera entries | Generated prices | Optional; no fake live camera status |
+| `APP_MODE=live` | Empty account ledger | Optional CoinGecko USD reference prices | Required for new trades |
 
-For reference prices in live mode, set `MARKET_DATA_PROVIDER=coingecko`. Set `COINGECKO_DEMO_API_KEY` for a stable Demo allocation; keyless access is possible but subject to shared IP limits. The backend requests all six coins in one batch every five minutes by default, keeps the key server-side, and skips a paper fill when a price is absent or stale. The UI attributes CoinGecko and labels these as **reference prices, not Robinhood execution quotes**. Review the provider's [plan and attribution terms](https://www.coingecko.com/en/api/pricing) before public release. Use **a separate `DATABASE_PATH` for live mode**.
+For reference prices in live mode, set `MARKET_DATA_PROVIDER=coingecko`. Set `COINGECKO_DEMO_API_KEY` for a stable Demo allocation; keyless access is possible but subject to shared IP limits. The backend requests all six coins in one batch every five minutes by default, keeps the key server-side, and skips a recorded fill when a price is absent or stale. The UI attributes CoinGecko and labels these as **reference prices, not Robinhood execution quotes**. Review the provider's [plan and attribution terms](https://www.coingecko.com/en/api/pricing) before public release. Use **a separate `DATABASE_PATH` for live mode**.
 
-Crypto trades around the clock on Robinhood subject to maintenance, but this simulator does not receive Robinhood availability or order-book state. A CoinGecko reference price cannot predict a Robinhood fill. The six-coin catalog is a documented listing snapshot, not an assertion that a specific viewer can trade every coin in their jurisdiction.
+Crypto trades around the clock on Robinhood subject to maintenance, but this app does not receive Robinhood availability or order-book state. A CoinGecko reference price cannot predict a Robinhood fill. The six-coin catalog is a documented listing snapshot, not an assertion that a specific viewer can trade every coin in their jurisdiction.
 
 ## API
 
 | Method | Route | Purpose |
 | --- | --- | --- |
 | GET | `/api/health` | Process, camera and stream status |
-| GET | `/api/snapshot` | Entire public paper state |
-| GET/POST | `/api/admin` | Password-protected site, rule and paper-ledger controls |
+| GET | `/api/snapshot` | Entire public account state |
+| GET/POST | `/api/admin` | Password-protected site, rule and trade-ledger controls |
 | GET | `/api/stream` | Server-sent snapshot updates |
 | POST | `/api/ingest/observation` | Authenticated `{x,y,confidence,observedAt}` camera observation |
 
@@ -78,7 +78,7 @@ Observations use normalized coordinates (`0` to `1`) and `Authorization: Bearer 
 | --- | --- |
 | `src/` | React site, GSAP intro and scroll motion, procedural Three.js fish field |
 | `server/` | Express API, deterministic signal state machine, quote adapter, SQLite ledger |
-| `api/` | Vercel preview and admin functions backed by a dedicated Neon database |
+| `api/` | Vercel account and admin functions backed by a dedicated Neon database |
 | `shared/` | Symbols, zones and API types used by both halves |
 | `tracker/` | Optional Python/OpenCV camera bridge |
 | `public/vlad-placeholder.png` | Generated temporary visual; provenance and prompt in `ASSETS.md` |
@@ -86,4 +86,4 @@ Observations use normalized coordinates (`0` to `1`) and `Authorization: Bearer 
 
 ## Production boundary
 
-The real camera-driven service can be deployed to a **persistent Node 24 host**. A single long-lived process and persistent volume are needed for SQLite and SSE. Configure the live video ID, ingest secret, quote provider and camera bridge before presenting a real session. The Vercel release has an editable, database-backed **sample** portfolio, separate from that live SQLite ledger. The site always identifies trades as simulated. See [deployment notes](docs/DEPLOYMENT.md).
+The real camera-driven service can be deployed to a **persistent Node 24 host**. A single long-lived process and persistent volume are needed for SQLite and SSE. Configure the live video ID, ingest secret, quote provider and camera bridge before presenting a real session. The Vercel release has an editable, database-backed **fictional** portfolio, separate from that live SQLite ledger. The site states that no real trades or money are involved. See [deployment notes](docs/DEPLOYMENT.md).

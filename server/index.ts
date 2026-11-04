@@ -95,7 +95,7 @@ app.post('/api/admin', (request, response) => {
       return adminJson(response, 200, { ok: true });
     }
     if (body.action === 'saveQuote') {
-      if (config.mode !== 'demo') return adminJson(response, 409, { error: 'Manual scenario prices are available in demo mode only.' });
+      if (config.mode !== 'demo') return adminJson(response, 409, { error: 'Manual prices are available in demo mode only.' });
       const { symbol, price } = validateQuote(body.quote);
       store.setScenarioPrice(symbol, price);
       broadcast();
@@ -109,8 +109,8 @@ app.post('/api/admin', (request, response) => {
         return adminJson(response, 400, { error: 'The reference price is stale.' });
       }
       const trade = store.recordTrade(symbol, side, quote.price, notional, 'admin');
-      if (!trade) return adminJson(response, 400, { error: 'Insufficient virtual cash or coin units for this trade.' });
-      store.addActivity('trade', `Admin recorded a ${side} ${symbol} paper trade for $${trade.notional.toFixed(2)}.`);
+      if (!trade) return adminJson(response, 400, { error: 'Insufficient cash or coin units for this entry.' });
+      store.addActivity('trade', `Admin recorded a ${side} ${symbol} trade for $${trade.notional.toFixed(2)}.`);
       broadcast();
       return adminJson(response, 200, { ok: true });
     }
@@ -171,8 +171,8 @@ app.post('/api/ingest/observation', (request, response) => {
     if (reason) store.addActivity('skip', `${side} ${symbol} skipped: ${reason}.`);
     else {
       const trade = store.recordTrade(symbol, side, quote!.price, store.rules(config).orderNotional, 'camera');
-      if (trade) store.addActivity('trade', `Vlad ${side === 'BUY' ? 'bought' : 'sold'} ${symbol} for $${trade.notional.toFixed(2)} in the paper portfolio.`);
-      else store.addActivity('skip', `${side} ${symbol} skipped: insufficient ${side === 'BUY' ? 'virtual cash' : 'coin units'}.`);
+      if (trade) store.addActivity('trade', `Vlad ${side === 'BUY' ? 'bought' : 'sold'} ${symbol} for $${trade.notional.toFixed(2)} in the account ledger.`);
+      else store.addActivity('skip', `${side} ${symbol} skipped: insufficient ${side === 'BUY' ? 'cash balance' : 'coin units'}.`);
     }
   }
   broadcast();
@@ -187,7 +187,7 @@ if (fs.existsSync(path.join(clientDir, 'index.html'))) {
 }
 
 const server = app.listen(config.port, config.host, () => {
-  console.log(`Vlad paper-trading server: http://${config.host}:${config.port} (${config.mode})`);
+  console.log(`Vlad trading experiment server: http://${config.host}:${config.port} (${config.mode})`);
   if (!config.ingestToken) console.log('Observation ingest disabled until INGEST_TOKEN is set.');
   if (!config.youtubeVideoId) console.log('YouTube Live video ID not configured; site displays a temporary still.');
 });

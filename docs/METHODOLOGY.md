@@ -1,10 +1,10 @@
-# Paper trading methodology
+# Trading methodology
 
-## What is simulated
+## What the account represents
 
-All dollars, coin units, orders, P&L and benchmark results on this site are virtual. `APP_MODE=demo` uses **scenario prices and sample historical trades** to make the UI reviewable before hardware is connected. In `APP_MODE=live`, camera observations can create paper trades against a server-fetched CoinGecko USD reference price. Neither mode sends an order to Robinhood, another broker, an exchange, or a wallet. The project is independent of Robinhood.
+All account values, trades, P&L and benchmark results on this site are fictional. No money is invested and no real order is placed. `APP_MODE=demo` uses **generated prices and history** to make the UI reviewable before hardware is connected. In `APP_MODE=live`, camera observations can add trade entries against a server-fetched CoinGecko USD reference price. Neither mode sends an order to Robinhood, another broker, an exchange, or a wallet. The project is independent of Robinhood.
 
-The six choices are DOGE, SHIB, PEPE, BONK, WIF and TRUMP. They appeared as tradable on [Robinhood's U.S. crypto availability page](https://robinhood.com/us/en/support/articles/coin-availability/) when checked on 3 November 2026. Availability changes and can depend on location. The catalog is a selection rule for the simulation, not a live listing feed.
+The six choices are DOGE, SHIB, PEPE, BONK, WIF and TRUMP. They appeared as tradable on [Robinhood's U.S. crypto availability page](https://robinhood.com/us/en/support/articles/coin-availability/) when checked on 3 November 2026. Availability changes and can depend on location. The catalog is a selection rule for the experiment, not a live listing feed.
 
 ## Tank layout
 
@@ -21,24 +21,24 @@ The fish must be detected with confidence `>= 0.55`. A continuous stay of `DWELL
 
 ## Fill conditions
 
-A paper decision is **skipped and logged** if no price exists, the provider timestamp is older than `MAX_QUOTE_AGE_MS` (default 10 minutes), virtual cash is below $1 for a buy, or the portfolio has less than $1 worth of the selected coin for a sell. The order target is `ORDER_NOTIONAL` (default $500). Buys use the lesser of that target and available virtual cash. Sells use the lesser of that target and the current value of held units. Short selling and margin are absent. The simulator does not query Robinhood maintenance status; its fills are never actual Robinhood orders.
+A decision is **skipped and logged** if no price exists, the provider timestamp is older than `MAX_QUOTE_AGE_MS` (default 10 minutes), account cash is below $1 for a buy, or the portfolio has less than $1 worth of the selected coin for a sell. The order target is `ORDER_NOTIONAL` (default $500). Buys use the lesser of that target and available account cash. Sells use the lesser of that target and the current value of held units. Short selling and margin are absent. The app does not query Robinhood maintenance status; its fills are never actual Robinhood orders.
 
-Coin units are rounded **down** to six decimal places; cash and notional are rounded to cents. Tiny coin prices retain provider precision, so SHIB, PEPE and BONK do not display or fill at `$0.00`. The trade ledger stores the side, symbol, filled units, reference price, notional, timestamp and whether the source was a sample fixture or a camera signal. It does **not** include Robinhood spreads or fees, slippage, taxes, network costs or order-book liquidity. Paper returns cannot be treated as executable returns.
+Coin units are rounded **down** to six decimal places; cash and notional are rounded to cents. Tiny coin prices retain provider precision, so SHIB, PEPE and BONK do not display or fill at `$0.00`. The trade ledger stores the side, symbol, filled units, reference price, notional, timestamp and whether the source was a generated entry or a camera signal. It does **not** include Robinhood spreads or fees, slippage, taxes, network costs or order-book liquidity. Displayed returns cannot be treated as executable returns.
 
 ## Valuation
 
-- **Portfolio value:** virtual cash plus the marked value of each position at the latest available quote.
-- **Total P&L:** portfolio value minus initial virtual cash.
+- **Portfolio value:** account cash plus the marked value of each position at the latest available quote.
+- **Total P&L:** portfolio value minus initial account cash.
 - **Today's P&L:** current value minus the first stored equity point of the current UTC calendar day. If no point exists for that day, it begins at zero until the first point is recorded.
-- **DOGE benchmark:** initial virtual cash invested in DOGE at the first stored DOGE reference price, then marked at the current DOGE reference price. This is a simple paper buy-and-hold comparison.
+- **DOGE benchmark:** initial account cash invested in DOGE at the first stored DOGE reference price, then marked at the current DOGE reference price. This is a simple buy-and-hold comparison.
 - **Unrealized P&L:** current market value minus coin units times weighted average acquisition cost. Realized P&L is reflected in cash and total portfolio value but is not displayed as a separate tax-lot report.
 - **24-hour move:** the CoinGecko change percentage is used to derive a comparison price 24 hours earlier. If that percentage is unavailable, the move is displayed as unavailable rather than zero.
 
-The optional [CoinGecko `/simple/price` endpoint](https://docs.coingecko.com/reference/simple-price) returns USD prices, 24-hour changes and provider timestamps for all six mapped coin IDs in one request. The default five-minute polling interval fits under the currently published 10,000-call monthly Demo cap for one continuously running instance, with some room for restarts. If the provider is unavailable, prior prices remain visible with their old timestamp, but they cannot fill new paper orders once stale. The site attributes CoinGecko where these prices appear; review the provider's display rights and plan before public release.
+The optional [CoinGecko `/simple/price` endpoint](https://docs.coingecko.com/reference/simple-price) returns USD prices, 24-hour changes and provider timestamps for all six mapped coin IDs in one request. The default five-minute polling interval fits under the currently published 10,000-call monthly Demo cap for one continuously running instance, with some room for restarts. If the provider is unavailable, prior prices remain visible with their old timestamp, but they cannot fill new trade entries once stale. The site attributes CoinGecko where these prices appear; review the provider's display rights and plan before public release.
 
 ## Robinhood relationship
 
-Robinhood supplies the listing reference only. The app does not log in to Robinhood, call a Robinhood trading API, read its order book or make Robinhood trades. CoinGecko aggregates independent market prices, so the virtual fill can differ from any venue's executable price. Crypto may trade on Robinhood around the clock subject to maintenance and local availability; those platform conditions are outside the simulator's feed.
+Robinhood supplies the listing reference only. The app does not log in to Robinhood, call a Robinhood trading API, read its order book or make Robinhood trades. CoinGecko aggregates independent market prices, so the displayed fill can differ from any venue's executable price. Crypto may trade on Robinhood around the clock subject to maintenance and local availability; those platform conditions are outside the app's feed.
 
 ## Failure visibility
 

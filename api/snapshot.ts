@@ -1,6 +1,6 @@
 import { buildPreviewSnapshot, loadPreviewData } from '../server/preview-db.js';
 
-// The public Vercel deployment is a stateless sample. The persistent camera
+// The public Vercel deployment is a database-backed simulation. The persistent camera
 // ledger and event stream run only on the long-lived Node server.
 export default {
   async fetch(): Promise<Response> {
@@ -10,8 +10,8 @@ export default {
         headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
       });
     } catch (error) {
-      console.error('Preview snapshot failed:', error);
-      return Response.json({ error: 'The preview database is unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      console.error('Account snapshot failed:', error);
+      return Response.json({ error: 'The account database is unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
     }
   },
 };

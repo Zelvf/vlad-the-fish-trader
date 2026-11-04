@@ -75,7 +75,7 @@ svg { flex: none; }
 .hero-strap a { display: inline-flex; align-items: center; gap: 20px; padding-bottom: 5px; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .hero-strap a svg { transition: transform .2s; }
 .hero-strap a:hover svg { transform: translateY(5px); }
-.hero-disclosure { position: absolute; bottom: 24px; left: 0; right: 0; display: flex; align-items: center; gap: 9px; color: #aeb5b6; font-size: 11px; }
+.hero-disclosure { position: absolute; top: 178px; left: 0; right: 0; display: flex; align-items: center; gap: 9px; color: #e0e4e4; font-size: 12px; text-shadow: 0 2px 9px #030608, 0 1px 3px #030608; }
 .hero-scene-copy { position: absolute; z-index: 3; top: 27%; left: max(48px, calc((100vw - 1360px)/2)); max-width: 75%; color: var(--white); opacity: 0; visibility: hidden; pointer-events: none; }
 .hero-scene-one::before { content: ''; position: absolute; z-index: -1; inset: -32px -24px; background: linear-gradient(90deg, rgba(3, 6, 8, .68), rgba(3, 6, 8, .36) 64%, transparent); filter: blur(22px); }
 .hero-scene-copy > span, .hero-scene-copy small { display: block; font-size: 13px; color: #b9c2c3; text-shadow: 0 2px 12px #030608, 0 1px 3px #030608; }
@@ -345,7 +345,7 @@ svg { flex: none; }
   .hero-strap p { font-size: 20px; }
   .hero-strap a { gap: 8px; font-size: 0; }
   .hero-strap a svg { width: 20px; height: 20px; }
-  .hero-disclosure { bottom: 29px; font-size: 10px; }
+  .hero-disclosure { top: 151px; font-size: 11px; }
   .hero-scene-copy { left: 18px; right: 18px; top: 24%; max-width: none; }
   .hero-scene-copy p { font-size: clamp(52px, 12.5vw, 72px); }
   .hero-scene-copy > span, .hero-scene-copy small { font-size: 11px; }

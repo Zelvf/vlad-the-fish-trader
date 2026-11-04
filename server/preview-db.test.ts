@@ -3,7 +3,7 @@ import test from 'node:test';
 import { DEFAULT_RULES, DEFAULT_SITE } from '../shared/admin.js';
 import { buildPreviewSnapshot, previewTradePrice, type PreviewData } from './preview-db.js';
 
-test('database-backed preview replays admin trades and scenario price edits with honest labels', () => {
+test('database-backed account replays admin trades and generated price edits with distinct sources', () => {
   const base: PreviewData = { site: { ...DEFAULT_SITE, heroLineOne: 'A test headline.' }, rules: DEFAULT_RULES,
     quoteOverrides: { DOGE: 0.2 }, adminTrades: [], revision: 0 };
   assert.equal(previewTradePrice(base, 'SHIB', 'SELL', 100), null);
@@ -13,9 +13,11 @@ test('database-backed preview replays admin trades and scenario price edits with
   const snapshot = buildPreviewSnapshot(state);
   assert.equal(snapshot.site.heroLineOne, 'A test headline.');
   assert.equal(snapshot.quotes.find((quote) => quote.symbol === 'DOGE')?.price, 0.2);
+  assert.equal(snapshot.quotes.find((quote) => quote.symbol === 'DOGE')?.source, 'generated');
   assert.equal(snapshot.trades[0]?.source, 'admin');
+  assert.ok(snapshot.trades.some((trade) => trade.source === 'generated'));
   assert.equal(snapshot.tradesCount, 5);
   assert.equal(snapshot.cash, 8_650);
   assert.equal(snapshot.equity.at(-1)?.value, snapshot.portfolioValue);
-  assert.match(snapshot.pricingLabel, /Scenario prices/);
+  assert.match(snapshot.pricingLabel, /Generated prices/);
 });

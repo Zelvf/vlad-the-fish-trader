@@ -1,22 +1,23 @@
 # Verification record
 
-Verified locally on Windows with Node.js 24.15.0 and Python 3.10 on 3 November 2026.
+Initial verification was performed locally on Windows with Node.js 24.15.0 and Python 3.10 on 3 November 2026. The copy and source-label update was checked on 4 November 2026.
 
 ## Current meme-coin implementation
 
 - `npm.cmd run check` passed for frontend and server TypeScript.
 - `npm.cmd run build`, `npm.cmd run build:vercel` and `vercel build --prod` passed. The Vercel-mode frontend uses one-minute snapshot polling and builds the admin, health and public snapshot functions.
-- `npm.cmd test` passed eight tests: dwell/action/cooldown, confidence and camera gaps, tiny-price coin ledger fills and restart persistence, asset-universe rejection, one-batch CoinGecko mapping, admin site/rule validation, signed session and origin checks, and replay of persisted preview edits.
-- The isolated local admin API accepted a password login, changed the public headline and rule timing, set a DOGE scenario price, and recorded a $100 admin-labelled paper buy. Cash became $8,650. The headline, rule, quote override and trade remained after a process restart. The test ledger is ignored in `output/`.
+- `npm.cmd test` passed eight tests: dwell/action/cooldown, confidence and camera gaps, tiny-price coin ledger fills and restart persistence, asset-universe rejection, one-batch CoinGecko mapping, admin site/rule validation, signed session and origin checks, and replay of persisted account edits.
+- The isolated local admin API accepted a password login, changed the public headline and rule timing, set a DOGE entered price, and recorded a $100 admin-labelled buy entry. Cash became $8,650. The headline, rule, quote override and trade remained after a process restart. The test ledger is ignored in `output/`.
 - A fresh browser session loaded `/admin` without console errors. Desktop and 390px mobile views had no horizontal overflow; the sign-in and overview screens were visually inspected.
-- The newly provisioned Neon preview database initialized and returned the sample portfolio. A stale-revision manual trade request was rejected without an insert.
+- The newly provisioned Neon account database initialized and returned the fictional account. A stale-revision manual trade request was rejected without an insert.
 - A direct keyless request to CoinGecko's documented endpoint returned HTTP 200, all six configured IDs, positive USD prices and provider timestamps. This checks the ID mapping; it is not a claim of stable keyless service.
-- An isolated `APP_MODE=live` server on port 8890 populated six CoinGecko quotes. Two shortened camera dwell intervals selected DOGE and recorded one $500 virtual DOGE buy, leaving $9,500 virtual cash. The trade source was `camera`; no real order was sent.
-- The default demo API returned DOGE, SHIB, PEPE, BONK, WIF and TRUMP with `scenario` source, four sample trades and a DOGE benchmark. Small prices remained visible at full useful precision.
+- An isolated `APP_MODE=live` server on port 8890 populated six CoinGecko quotes. Two shortened camera dwell intervals selected DOGE and recorded one $500 DOGE buy entry, leaving $9,500 account cash. The trade source was `camera`; no real order was sent.
+- The default demo API returned DOGE, SHIB, PEPE, BONK, WIF and TRUMP with `generated` source, four generated trades and a DOGE benchmark. Small prices remained visible at full useful precision.
 - Browser inspection at 1440px and 390px showed the updated hero, portfolio, tank zones and journal, no console errors or warnings, and no page-level horizontal overflow.
-- The production Vercel release returned HTTP 200 for `/admin`, `/api/health`, `/api/snapshot` and `/api/admin`. Health reported a connected preview database, while the public snapshot retained six scenario quotes and four sample trades.
+- The production Vercel release returned HTTP 200 for `/admin`, `/api/health`, `/api/snapshot` and `/api/admin`. Health reported a connected account database, while the public snapshot retained six generated prices and four generated trades.
 - On the deployed site, password sign-in opened the admin overview. Saving a revised stream placeholder note succeeded, and a fresh public API request and browser page displayed the saved text. Sign-out returned to the login screen; an unauthenticated production write returned HTTP 401.
 - Local, GitHub `main` and the production Vercel deployment were checked against matching commit hashes for that live check.
+- The updated public page uses generated-source labels and a visible no-real-money notice. Browser checks at 1280px and 390px found no horizontal overflow. The signed-in control room displays the revised labels and keeps admin entries distinct from camera decisions.
 
 Current screenshots: `output/playwright/memecoin-desktop-hero.png`, `output/playwright/memecoin-desktop-portfolio.png`, `output/playwright/memecoin-desktop-tank.png`, `output/playwright/memecoin-mobile-hero.png`, `output/playwright/memecoin-mobile-portfolio.png` and `output/playwright/memecoin-mobile-journal.png`. The `output/` directory is ignored by Git.
 
@@ -25,9 +26,9 @@ Current screenshots: `output/playwright/memecoin-desktop-hero.png`, `output/play
 - Vlad's actual YouTube Live video ID, so live playback could not be verified.
 - Vlad's actual camera/tank footage, so tracking thresholds and ROI remain a starting point.
 - A CoinGecko Demo key and a plan permitting the intended public price display. Keyless live polling was exercised locally, but production reliability and attribution terms still need review.
-- A persistent HTTPS host for the camera-driven API. The Vercel deployment is a database-backed sample preview, not a camera receiver.
+- A persistent HTTPS host for the camera-driven API. The Vercel deployment is a database-backed account, not a camera receiver.
 
-The UI intentionally labels sample history and scenario prices in the absence of those inputs.
+The UI intentionally labels generated history and prices in the absence of those inputs.
 
 ## Motion and accessibility
 

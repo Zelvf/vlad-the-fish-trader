@@ -73,28 +73,28 @@ export function validateRules(value: unknown): TradingRules {
   if (!Number.isInteger(dwellMs) || dwellMs < 1_000 || dwellMs > 30_000) throw new Error('Hold time must be 1–30 seconds.');
   if (!Number.isInteger(cooldownMs) || cooldownMs < 1_000 || cooldownMs > 300_000) throw new Error('Cooldown must be 1–300 seconds.');
   if (!Number.isFinite(orderNotional) || orderNotional < 1 || orderNotional > 10_000 || Math.round(orderNotional * 100) !== orderNotional * 100) {
-    throw new Error('Paper order amount must be $1–$10,000 in cents.');
+    throw new Error('Trade amount must be $1–$10,000 in cents.');
   }
   return { dwellMs, cooldownMs, orderNotional };
 }
 
 export function validateQuote(value: unknown): { symbol: SymbolCode; price: number } {
-  if (!value || typeof value !== 'object') throw new Error('A coin and scenario price are required.');
+  if (!value || typeof value !== 'object') throw new Error('A coin and price are required.');
   const input = value as Record<string, unknown>;
   if (typeof input.symbol !== 'string' || !isSymbol(input.symbol)) throw new Error('Choose a listed meme coin.');
   const price = Number(input.price);
-  if (!Number.isFinite(price) || price <= 0 || price > 1_000_000) throw new Error('Scenario price must be greater than zero and at most $1,000,000.');
+  if (!Number.isFinite(price) || price <= 0 || price > 1_000_000) throw new Error('Price must be greater than zero and at most $1,000,000.');
   return { symbol: input.symbol, price };
 }
 
 export function validateAdminTrade(value: unknown): { symbol: SymbolCode; side: TradeSide; notional: number } {
-  if (!value || typeof value !== 'object') throw new Error('Paper trade details are required.');
+  if (!value || typeof value !== 'object') throw new Error('Trade details are required.');
   const input = value as Record<string, unknown>;
   if (typeof input.symbol !== 'string' || !isSymbol(input.symbol)) throw new Error('Choose a listed meme coin.');
   if (input.side !== 'BUY' && input.side !== 'SELL') throw new Error('Choose BUY or SELL.');
   const notional = Number(input.notional);
   if (!Number.isFinite(notional) || notional < 1 || notional > 10_000 || Math.round(notional * 100) !== notional * 100) {
-    throw new Error('Paper trade amount must be $1–$10,000 in cents.');
+    throw new Error('Trade amount must be $1–$10,000 in cents.');
   }
   return { symbol: input.symbol, side: input.side, notional };
 }

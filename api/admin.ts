@@ -17,7 +17,7 @@ export default {
       if (!sessionValid(request.headers.get('cookie'), secure)) return json({ authenticated: false, configured: true });
       try {
         const data = await loadPreviewData();
-        return json({ authenticated: true, configured: true, storage: 'Neon preview',
+        return json({ authenticated: true, configured: true, storage: 'Neon database',
           revision: data.revision, quoteOverrides: data.quoteOverrides, snapshot: buildPreviewSnapshot(data) });
       } catch (error) { console.error('Admin read failed:', error); return json({ error: 'The admin database is unavailable.' }, 503); }
     }
@@ -69,7 +69,7 @@ export default {
         try { trade = validateAdminTrade(body.trade); } catch (error) { return json({ error: (error as Error).message }, 400); }
         const data = await loadPreviewData();
         const price = previewTradePrice(data, trade.symbol, trade.side, trade.notional);
-        if (price === null) return json({ error: 'The paper portfolio has insufficient virtual cash or coin units for this trade.' }, 400);
+        if (price === null) return json({ error: 'The account lacks enough cash or coin units for this entry.' }, 400);
         if (!await savePreviewTrade({ ...trade, price, revision: data.revision })) {
           return json({ error: 'The portfolio changed while saving. Refresh and try again.' }, 409);
         }
